@@ -1,0 +1,306 @@
+{
+  "name": "Stage 1 - Email Extraction",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1e9ca5f2-7d7c-4ab4-81f6-15a085a2d0bf",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "senders",
+        "returnAll": true
+      },
+      "id": "30803abe-6419-4327-b03e-676daf4314f5",
+      "name": "Senders",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        460,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "glossary",
+        "returnAll": true
+      },
+      "id": "bf5fa3b5-7e9d-486e-baf9-f0f6b16ff70f",
+      "name": "Glossary",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        460,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "exclusions",
+        "returnAll": true
+      },
+      "id": "40fb6157-f135-40c9-bff0-030bda26fced",
+      "name": "Exclusions",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "mandatory_fields",
+        "returnAll": true
+      },
+      "id": "829a9cbb-8799-4ea8-ab6b-41a021f0299f",
+      "name": "MandatoryFields",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        460,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "label_notes",
+        "returnAll": true
+      },
+      "id": "a3db9223-efec-414e-b0f8-205d8904300c",
+      "name": "LabelNotes",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        460,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 50,
+        "simple": false,
+        "filters": {},
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "id": "2d9080d8-4fc4-47b5-be6f-5ca6d39bb37c",
+      "name": "Get Emails",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        460,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "htmlToMarkdown",
+        "html": "={{ $json.html }}",
+        "options": {
+          "destinationKey": "markdown"
+        }
+      },
+      "id": "1f487531-ee60-4d54-870e-3bd3c80b1754",
+      "name": "HTML to Markdown",
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        680,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f241aba7-8264-4ffd-b7aa-c823275b20ff",
+              "name": "from",
+              "value": "={{ $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "2abaf937-1951-4004-a1ca-60dc61b472d8",
+              "name": "from_name",
+              "value": "={{ $json.from.value[0].name }}",
+              "type": "string"
+            },
+            {
+              "id": "28b7bb98-de0c-4369-9f8b-9b0468390196",
+              "name": "subject",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "6ce23035-29b4-43f0-91e4-a17762b0a583",
+              "name": "date",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "e62ee2e6-c839-41c4-9acb-d28ae4237659",
+              "name": "thread_id",
+              "value": "={{ $json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "8d4d81e9-925a-404f-816f-8e7bb9847325",
+              "name": "message_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "5d32b7de-2471-4a98-83c0-350616822e3a",
+              "name": "body",
+              "value": "={{ $json.markdown || $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "354ca1f9-666e-414e-8d22-2e72b231c89d",
+              "name": "attachments_text",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "3b595ba6-5e39-4513-8fe6-bd34d78c9b9b",
+      "name": "Prepare Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        900,
+        920
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a data-extraction assistant for Nika, a distributor of CDs, vinyl and other\nrecorded music. Record labels email Nika with catalog updates. These emails are\nmessy and inconsistent: many formats, frequent acronyms or code-words, and often\nincomplete. Your job is to read ONE email and turn it into clean, structured\ncatalog data.\n\nYou do three things:\n1. Decide whether the email is relevant to the music catalog at all.\n2. Identify which record label it is from, using the sender→label list provided.\n3. Extract every catalog item and its fields, applying the rules provided.\n\nThe user message contains a RULES section (sender→label map, glossary of\nacronyms, exclusion keywords, mandatory fields, artist-formatting rules, per-label\nnotes) and the EMAIL. Apply the rules exactly as given. They change over time, so\nnever rely on memory of previous rules — only use what is in this message.\n\nCritical principles:\n- Never invent or guess data. If a field is not present, return null. Do not\n  fabricate barcodes, prices, dates, codes, or titles.\n- Output the EAN/barcode exactly as written, as a STRING, preserving leading zeros.\n  Never turn it into a number.\n- Work ONLY from this email. Do not assume details from other emails. If an item is\n  missing required fields, extract what is there and flag it — never fill the gap.\n- One email may contain zero, one, or many items (e.g. a release list). Return one\n  entry per item.\n- Be conservative with confidence. When unsure, lower confidence and flag for review\n  instead of guessing.\n- Decode acronyms/code-words using the glossary. If you hit an acronym or code-word\n  that is NOT in the glossary and seems important, flag it (this is how new rules get\n  found) — do not guess its meaning.\n- If the sender is not in the sender→label map, set label to null and flag it.\n- Apply the exclusion keywords: if an item matches one, set excluded=true with the\n  reason, but still extract it.\n- Apply the artist-formatting rules to produce a normalized `artist`, but ALWAYS keep\n  the original text in `artist_raw`.\n- Some labels use code-names for high-profile artists (see per-label notes). If you\n  suspect a code-name or a sensitive/high-value case, flag it for manual review and\n  lower confidence — do not resolve it yourself.\n- Normalize release_date to YYYY-MM-DD. If it is missing, ambiguous, or implausible\n  (e.g. a clearly wrong year like 1900), set it to null and flag it.\n- This mailbox also receives many emails that are NOT label catalog updates:\n  customer orders, purchase orders from distributors, confirmations, admin mail.\n  Classify these as is_catalog_relevant=false. A catalog update announces or lists\n  releases/products from a label to ADD or UPDATE in the catalog; an order is a\n  transaction referencing existing products (often titled \"Naročilo\"/\"Order\") and\n  is NOT catalog-relevant.\n- The real catalog data is sometimes not in the email body but in an attachment\n  (e.g. \"please find enclosed our list\"). Treat the provided attachment text as the\n  primary content when the body is empty, generic, or a placeholder. Do not assume\n  the body is the full message.\n\nSome fields map to the Hermes system. The following are OPTIONAL and labels often\nomit them — extract only if clearly present in the email/attachment, otherwise null,\nand never guess them:\n- custom_tariff   (the customs tariff code)\n- tax_rate        (the VAT/tax rate, e.g. 22)\n- unit_of_measure (UM, e.g. piece/KS)\n- classification  (the product classification/category)\n\nRespond with a SINGLE valid JSON object and NOTHING else — no prose, no markdown, no\ncode fences. Use exactly this shape:\n\n{\n  \"is_catalog_relevant\": boolean,\n  \"relevance_reason\": string,\n  \"label\": string | null,\n  \"sender_recognized\": boolean,\n  \"overall_confidence\": number,\n  \"needs_review\": boolean,\n  \"review_reasons\": string[],\n  \"items\": [\n    {\n      \"artist_raw\": string | null,\n      \"artist\": string | null,\n      \"title\": string | null,\n      \"format\": string | null,\n      \"ean\": string | null,\n      \"catalogue_no\": string | null,\n      \"release_date\": string | null,\n      \"price_eur\": number | null,\n      \"calculation_group\": string | null,\n      \"supplier_code\": string | null,\n      \"custom_tariff\": string | null,\n      \"tax_rate\": number | null,\n      \"unit_of_measure\": string | null,\n      \"classification\": string | null,\n      \"excluded\": boolean,\n      \"exclusion_reason\": string | null,\n      \"missing_mandatory\": string[],\n      \"item_confidence\": number,\n      \"item_notes\": string | null\n    }\n  ]\n}\n\nIf the email is not catalog-relevant, set is_catalog_relevant=false, give the reason,\nand return an empty items array."
+            },
+            {
+              "role": "user",
+              "content": "RULES (apply exactly; current rules, may change):\n\nSender → label map:\n{{ JSON.stringify($('Senders').all().map(i => i.json)) }}\n\nGlossary:\n{{ JSON.stringify($('Glossary').all().map(i => i.json)) }}\n\nExclusion keywords:\n{{ JSON.stringify($('Exclusions').all().map(i => i.json)) }}\n\nMandatory fields:\n{{ JSON.stringify($('MandatoryFields').all().map(i => i.json)) }}\n\nPer-label notes:\n{{ JSON.stringify($('LabelNotes').all().map(i => i.json)) }}\n\nArtist-formatting rules:\n- Individual artist: SURNAME FIRSTNAME in capitals, no comma (e.g. \"Joni Mitchell\" -> \"MITCHELL JONI\").\n- Band/group: full group name in capitals, dropping a leading \"The\" (e.g. \"The Doors\" -> \"DOORS\").\n- Multiple artists on one item: separate with a backslash ( \\ ).\n- Soundtracks/compilations with no single artist: use the glossary marker (e.g. OST).\n\nEMAIL TO PROCESS:\nFrom: {{ $json.from_name }} <{{ $json.from }}>\nSubject: {{ $json.subject }}\nDate: {{ $json.date }}\nBody:\n{{ $json.body }}\n\nAttachments (extracted text, if any):\n{{ $json.attachments_text }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "292e15d3-055b-4a1f-8899-d96763961c8e",
+      "name": "Extract",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1120,
+        920
+      ]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Senders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Glossary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Exclusions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MandatoryFields",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LabelNotes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Emails": {
+      "main": [
+        [
+          {
+            "node": "HTML to Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML to Markdown": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
