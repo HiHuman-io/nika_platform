@@ -1,0 +1,473 @@
+"use client";
+
+import * as React from "react";
+import {
+  type ColumnDef as TSColumnDef,
+  type ColumnSizingState,
+  type RowSelectionState,
+  type VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+
+import { type Row, StatusBadge, toText } from "./table-cells";
+import { type FieldDef, useRowDialogs } from "./row-form";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Checkbox } from "./ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+
+export type CatalogVariant = "text" | "code" | "number" | "date" | "status";
+
+export type CatalogColumnSpec = {
+  key: string;
+  label: string;
+  variant?: CatalogVariant;
+  size?: number;
+  hidden?: boolean;
+};
+
+type ColumnMeta = { variant?: CatalogVariant; label: string };
+
+function sessionLoad<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function sessionSave(key: string, value: unknown) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* sessionStorage may be unavailable; widths just won't persist */
+  }
+}
+
+function CatalogCell({
+  value,
+  variant,
+}: {
+  value: unknown;
+  variant?: CatalogVariant;
+}) {
+  if (value === null || value === undefined || value === "") {
+    return <span className="text-border-strong">—</span>;
+  }
+  if (variant === "status" && typeof value === "string") {
+    return <StatusBadge value={value} />;
+  }
+  if (typeof value === "boolean") return <>{value ? "true" : "false"}</>;
+  if (typeof value === "object") {
+    // Same font size as every other cell — only the family differs.
+    return <span className="font-mono">{JSON.stringify(value)}</span>;
+  }
+  if (variant === "code") {
+    return <span className="font-mono">{String(value)}</span>;
+  }
+  return <>{String(value)}</>;
+}
+
+export function CatalogTable({
+  table: tableName,
+  rows,
+  columns: specs,
+  fields,
+  idKey = "id",
+  entityLabel = "catalog line",
+  selectionAction,
+  storageKey = "catalog-table",
+}: {
+  table: string;
+  rows: Row[];
+  columns: CatalogColumnSpec[];
+  fields: FieldDef[];
+  idKey?: string;
+  entityLabel?: string;
+  selectionAction?: { label: string; pendingMessage: string };
+  storageKey?: string;
+}) {
+  const { openAdd, openEdit, openDelete, dialogs } = useRowDialogs({
+    table: tableName,
+    fields,
+    entityLabel,
+    idKey,
+  });
+
+  // Guarantee the *full* set: any data key not in the spec is appended.
+  const allSpecs = React.useMemo<CatalogColumnSpec[]>(() => {
+    const known = new Set(specs.map((s) => s.key));
+    const extras: CatalogColumnSpec[] = [];
+    for (const row of rows) {
+      for (const k of Object.keys(row)) {
+        if (!known.has(k)) {
+          known.add(k);
+          extras.push({ key: k, label: k.replace(/_/g, " "), variant: "text" });
+        }
+      }
+    }
+    return [...specs, ...extras];
+  }, [specs, rows]);
+
+  // Live search filters rows before the table sees them.
+  const [query, setQuery] = React.useState("");
+  const data = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((row) =>
+      Object.values(row).some((v) => toText(v).toLowerCase().includes(q)),
+    );
+  }, [rows, query]);
+
+  const defaultVisibility = React.useMemo<VisibilityState>(() => {
+    const v: VisibilityState = {};
+    for (const s of allSpecs) if (s.hidden) v[s.key] = false;
+    return v;
+  }, [allSpecs]);
+
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>(defaultVisibility);
+  const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({});
+
+  // Restore session widths/visibility after mount (avoids hydration mismatch).
+  const restored = React.useRef(false);
+  React.useEffect(() => {
+    setColumnSizing(sessionLoad(`${storageKey}:sizing`, {}));
+    setColumnVisibility((v) => ({
+      ...v,
+      ...sessionLoad<VisibilityState>(`${storageKey}:visibility`, {}),
+    }));
+    restored.current = true;
+  }, [storageKey]);
+  React.useEffect(() => {
+    if (restored.current) sessionSave(`${storageKey}:sizing`, columnSizing);
+  }, [columnSizing, storageKey]);
+  React.useEffect(() => {
+    if (restored.current) sessionSave(`${storageKey}:visibility`, columnVisibility);
+  }, [columnVisibility, storageKey]);
+
+  const columns = React.useMemo<TSColumnDef<Row>[]>(() => {
+    const selectCol: TSColumnDef<Row> = {
+      id: "select",
+      size: 44,
+      enableResizing: false,
+      enableHiding: false,
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllRowsSelected()
+              ? true
+              : table.getIsSomeRowsSelected()
+                ? "indeterminate"
+                : false
+          }
+          onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(v) => row.toggleSelected(!!v)}
+          aria-label="Select row"
+        />
+      ),
+    };
+
+    const dataCols: TSColumnDef<Row>[] = allSpecs.map((s) => ({
+      id: s.key,
+      accessorKey: s.key,
+      header: s.label,
+      size: s.size ?? 150,
+      minSize: 64,
+      meta: { variant: s.variant, label: s.label } satisfies ColumnMeta,
+      cell: (info) => <CatalogCell value={info.getValue()} variant={s.variant} />,
+    }));
+
+    const actionsCol: TSColumnDef<Row> = {
+      id: "actions",
+      header: "Actions",
+      size: 92,
+      enableResizing: false,
+      enableHiding: false,
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted hover:text-foreground"
+            aria-label="Edit"
+            title="Edit"
+            onClick={() => openEdit(row.original)}
+          >
+            <Pencil />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted hover:bg-red-50 hover:text-red-600"
+            aria-label="Delete"
+            title="Delete"
+            onClick={() => openDelete(row.original)}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      ),
+    };
+
+    return [selectCol, ...dataCols, actionsCol];
+  }, [allSpecs, openEdit, openDelete]);
+
+  // React Compiler can't memoize TanStack's table instance; that's expected.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const table = useReactTable({
+    data,
+    columns,
+    state: { rowSelection, columnVisibility, columnSizing },
+    getRowId: (row) => String(row[idKey]),
+    enableRowSelection: true,
+    columnResizeMode: "onChange",
+    onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: setColumnVisibility,
+    onColumnSizingChange: setColumnSizing,
+    getCoreRowModel: getCoreRowModel(),
+    initialState: {
+      columnPinning: { left: ["select", "artist", "title"], right: ["actions"] },
+    },
+  });
+
+  const selectedCount = table.getSelectedRowModel().rows.length;
+  const [hermesMessage, setHermesMessage] = React.useState<string | null>(null);
+  const onHermes = () => {
+    if (!selectionAction) return;
+    setHermesMessage(
+      `${selectionAction.pendingMessage} (${selectedCount} rows selected)`,
+    );
+  };
+
+  const hideableColumns = table
+    .getAllLeafColumns()
+    .filter((c) => c.getCanHide());
+
+  return (
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search catalog…"
+            className="pl-8"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline">
+                <SlidersHorizontal />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="max-h-80 overflow-y-auto">
+              <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {hideableColumns.map((column) => {
+                const meta = column.columnDef.meta as ColumnMeta | undefined;
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={column.id}
+                    checked={column.getIsVisible()}
+                    onCheckedChange={(v) => column.toggleVisibility(!!v)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {meta?.label ?? column.id}
+                  </DropdownMenuCheckboxItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {selectionAction ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={selectedCount === 0}
+              onClick={onHermes}
+            >
+              <Send />
+              {selectionAction.label}
+              {selectedCount > 0 ? ` (${selectedCount})` : ""}
+            </Button>
+          ) : null}
+
+          <Button type="button" onClick={openAdd}>
+            <Plus />
+            Add row
+          </Button>
+        </div>
+      </div>
+
+      {hermesMessage ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-accent/30 bg-[var(--accent-soft)] px-4 py-2.5 text-sm text-foreground">
+          <span>{hermesMessage}</span>
+          <button
+            type="button"
+            onClick={() => setHermesMessage(null)}
+            className="text-xs text-muted hover:text-foreground"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {data.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-surface px-4 py-14 text-center shadow-[var(--shadow-card)]">
+          <p className="text-sm font-medium text-foreground">
+            {query ? "No matching entries." : "No entries yet."}
+          </p>
+          <p className="text-xs text-muted">
+            {query
+              ? "Try a different search."
+              : "Rows will appear here as soon as there's data."}
+          </p>
+        </div>
+      ) : (
+        // overflow-auto keeps the horizontal scroll INSIDE this container.
+        <div className="max-h-[calc(100vh-18rem)] w-full overflow-auto rounded-xl border border-border bg-surface shadow-[var(--shadow-card)]">
+          <table
+            className="border-collapse text-left text-[13px]"
+            style={{ width: table.getTotalSize(), tableLayout: "fixed" }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  {hg.headers.map((header) => {
+                    const pinned = header.column.getIsPinned();
+                    const meta = header.column.columnDef.meta as
+                      | ColumnMeta
+                      | undefined;
+                    const numeric = meta?.variant === "number";
+                    return (
+                      <th
+                        key={header.id}
+                        className={`relative truncate border-b border-border bg-surface px-3 py-3 text-xs font-semibold uppercase tracking-wide text-muted ${
+                          numeric ? "text-right" : ""
+                        }`}
+                        style={{
+                          width: header.getSize(),
+                          position: "sticky",
+                          top: 0,
+                          left:
+                            pinned === "left"
+                              ? header.column.getStart("left")
+                              : undefined,
+                          right:
+                            pinned === "right"
+                              ? header.column.getAfter("right")
+                              : undefined,
+                          zIndex: pinned ? 30 : 20,
+                        }}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                        {header.column.getCanResize() ? (
+                          <span
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            className={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize touch-none select-none ${
+                              header.column.getIsResizing()
+                                ? "bg-accent"
+                                : "bg-transparent hover:bg-accent/40"
+                            }`}
+                          />
+                        ) : null}
+                      </th>
+                    );
+                  })}
+                </tr>
+              ))}
+            </thead>
+            <tbody>
+              {table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="group transition-colors hover:bg-surface-hover/60"
+                  data-selected={row.getIsSelected()}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const pinned = cell.column.getIsPinned();
+                    const meta = cell.column.columnDef.meta as
+                      | ColumnMeta
+                      | undefined;
+                    const numeric = meta?.variant === "number";
+                    const isData =
+                      cell.column.id !== "select" && cell.column.id !== "actions";
+                    return (
+                      <td
+                        key={cell.id}
+                        title={isData ? toText(cell.getValue()) : undefined}
+                        className={`${isData ? "truncate" : ""} border-b border-border/60 px-3 py-2.5 text-[13px] text-foreground/90 ${
+                          numeric ? "text-right tabular-nums" : ""
+                        } ${
+                          pinned
+                            ? "bg-surface group-hover:bg-surface-hover/60 group-data-[selected=true]:bg-[var(--accent-soft)]"
+                            : ""
+                        } group-data-[selected=true]:bg-[var(--accent-soft)]`}
+                        style={{
+                          width: cell.column.getSize(),
+                          position: pinned ? "sticky" : undefined,
+                          left:
+                            pinned === "left"
+                              ? cell.column.getStart("left")
+                              : undefined,
+                          right:
+                            pinned === "right"
+                              ? cell.column.getAfter("right")
+                              : undefined,
+                          zIndex: pinned ? 10 : undefined,
+                        }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="px-1 text-xs text-muted">
+        {data.length} {data.length === 1 ? "entry" : "entries"}
+        {query ? ` matching "${query}"` : ""}
+        {selectedCount > 0 ? ` · ${selectedCount} selected` : ""}
+      </p>
+
+      {dialogs}
+    </div>
+  );
+}
