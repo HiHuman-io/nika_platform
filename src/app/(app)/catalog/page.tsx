@@ -62,7 +62,7 @@ export default async function CatalogPage() {
     .limit(500);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
           Catalog

@@ -14,13 +14,7 @@ export function Sidebar({ userEmail }: { userEmail?: string }) {
 
   return (
     <aside className="flex w-[200px] shrink-0 flex-col border-r border-border bg-surface">
-      <div className="px-5 py-5">
-        <p className="font-heading text-base font-semibold tracking-tight text-foreground">
-          Nika Catalog
-        </p>
-      </div>
-
-      <nav className="flex flex-1 flex-col gap-1 px-3">
+      <nav className="flex flex-1 flex-col gap-1 px-3 pt-5">
         {NAV.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);

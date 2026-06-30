@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   type ColumnDef as TSColumnDef,
   type ColumnSizingState,
@@ -10,9 +11,10 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
-import { type Row, StatusBadge, toText } from "./table-cells";
+import { updateRow } from "@/app/(app)/actions";
+import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import { type FieldDef, useRowDialogs } from "./row-form";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -56,6 +58,20 @@ function sessionSave(key: string, value: unknown) {
   }
 }
 
+/**
+ * Initial width (px) for a column with no explicit size: wide enough to show the
+ * longest value (sampled) and the header, clamped so a long JSON blob can't blow
+ * the layout out. The user can still drag-resize from here.
+ */
+function autoSizeWidth(key: string, label: string, rows: Row[]): number {
+  let maxChars = label.length;
+  for (const row of rows.slice(0, 80)) {
+    const len = toText(row[key]).length;
+    if (len > maxChars) maxChars = len;
+  }
+  return Math.min(440, Math.max(96, Math.round(maxChars * 7.2 + 30)));
+}
+
 function CatalogCell({
   value,
   variant,
@@ -89,6 +105,13 @@ export function CatalogTable({
   entityLabel = "catalog line",
   selectionAction,
   storageKey = "catalog-table",
+  canAdd = true,
+  canEdit = true,
+  canDelete = true,
+  markIgnored = false,
+  addLabel = "Add row",
+  searchPlaceholder = "Search catalog…",
+  pinColumns = ["artist", "title"],
 }: {
   table: string;
   rows: Row[];
@@ -98,13 +121,39 @@ export function CatalogTable({
   entityLabel?: string;
   selectionAction?: { label: string; pendingMessage: string };
   storageKey?: string;
+  canAdd?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  markIgnored?: boolean;
+  addLabel?: string;
+  searchPlaceholder?: string;
+  pinColumns?: string[];
 }) {
+  const router = useRouter();
   const { openAdd, openEdit, openDelete, dialogs } = useRowDialogs({
     table: tableName,
     fields,
     entityLabel,
     idKey,
   });
+
+  const onMarkIgnored = React.useCallback(
+    async (row: Row) => {
+      const payload: Record<string, unknown> =
+        "ignored" in row
+          ? { ignored: true }
+          : "status" in row
+            ? { status: "ignored" }
+            : { ignored: true };
+      const result = await updateRow(
+        tableName,
+        row[idKey] as string | number,
+        payload,
+      );
+      if (!result.error) router.refresh();
+    },
+    [tableName, idKey, router],
+  );
 
   // Guarantee the *full* set: any data key not in the spec is appended.
   const allSpecs = React.useMemo<CatalogColumnSpec[]>(() => {
@@ -114,7 +163,11 @@ export function CatalogTable({
       for (const k of Object.keys(row)) {
         if (!known.has(k)) {
           known.add(k);
-          extras.push({ key: k, label: k.replace(/_/g, " "), variant: "text" });
+          extras.push({
+            key: k,
+            label: k.replace(/_/g, " "),
+            variant: inferVariant(k, rows),
+          });
         }
       }
     }
@@ -159,6 +212,9 @@ export function CatalogTable({
     if (restored.current) sessionSave(`${storageKey}:visibility`, columnVisibility);
   }, [columnVisibility, storageKey]);
 
+  const showSelect = !!selectionAction;
+  const hasActions = canEdit || canDelete || markIgnored;
+
   const columns = React.useMemo<TSColumnDef<Row>[]>(() => {
     const selectCol: TSColumnDef<Row> = {
       id: "select",
@@ -191,7 +247,8 @@ export function CatalogTable({
       id: s.key,
       accessorKey: s.key,
       header: s.label,
-      size: s.size ?? 150,
+      // Explicit size when given; otherwise fit the content so text isn't clipped.
+      size: s.size ?? autoSizeWidth(s.key, s.label, rows),
       minSize: 64,
       meta: { variant: s.variant, label: s.label } satisfies ColumnMeta,
       cell: (info) => <CatalogCell value={info.getValue()} variant={s.variant} />,
@@ -205,34 +262,71 @@ export function CatalogTable({
       enableHiding: false,
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted hover:text-foreground"
-            aria-label="Edit"
-            title="Edit"
-            onClick={() => openEdit(row.original)}
-          >
-            <Pencil />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted hover:bg-red-50 hover:text-red-600"
-            aria-label="Delete"
-            title="Delete"
-            onClick={() => openDelete(row.original)}
-          >
-            <Trash2 />
-          </Button>
+          {canEdit ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted hover:text-foreground"
+              aria-label="Edit"
+              title="Edit"
+              onClick={() => openEdit(row.original)}
+            >
+              <Pencil />
+            </Button>
+          ) : null}
+          {markIgnored ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted hover:text-foreground"
+              aria-label="Mark ignored"
+              title="Mark ignored"
+              onClick={() => onMarkIgnored(row.original)}
+            >
+              <EyeOff />
+            </Button>
+          ) : null}
+          {canDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 text-muted hover:bg-red-50 hover:text-red-600"
+              aria-label="Delete"
+              title="Delete"
+              onClick={() => openDelete(row.original)}
+            >
+              <Trash2 />
+            </Button>
+          ) : null}
         </div>
       ),
     };
 
-    return [selectCol, ...dataCols, actionsCol];
-  }, [allSpecs, openEdit, openDelete]);
+    return [
+      ...(showSelect ? [selectCol] : []),
+      ...dataCols,
+      ...(hasActions ? [actionsCol] : []),
+    ];
+  }, [
+    allSpecs,
+    rows,
+    showSelect,
+    hasActions,
+    canEdit,
+    canDelete,
+    markIgnored,
+    openEdit,
+    openDelete,
+    onMarkIgnored,
+  ]);
+
+  const leftPinned = [
+    ...(showSelect ? ["select"] : []),
+    ...pinColumns.filter((k) => allSpecs.some((s) => s.key === k)),
+  ];
 
   // React Compiler can't memoize TanStack's table instance; that's expected.
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -248,7 +342,10 @@ export function CatalogTable({
     onColumnSizingChange: setColumnSizing,
     getCoreRowModel: getCoreRowModel(),
     initialState: {
-      columnPinning: { left: ["select", "artist", "title"], right: ["actions"] },
+      columnPinning: {
+        left: leftPinned,
+        right: hasActions ? ["actions"] : [],
+      },
     },
   });
 
@@ -274,7 +371,7 @@ export function CatalogTable({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search catalog…"
+            placeholder={searchPlaceholder}
             className="pl-8"
           />
         </div>
@@ -319,10 +416,12 @@ export function CatalogTable({
             </Button>
           ) : null}
 
-          <Button type="button" onClick={openAdd}>
-            <Plus />
-            Add row
-          </Button>
+          {canAdd ? (
+            <Button type="button" onClick={openAdd}>
+              <Plus />
+              {addLabel}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -352,7 +451,7 @@ export function CatalogTable({
         </div>
       ) : (
         // overflow-auto keeps the horizontal scroll INSIDE this container.
-        <div className="max-h-[calc(100vh-18rem)] w-full overflow-auto rounded-xl border border-border bg-surface shadow-[var(--shadow-card)]">
+        <div className="max-h-[calc(100vh-15rem)] w-full overflow-auto rounded-xl border border-border bg-surface shadow-[var(--shadow-card)]">
           <table
             className="border-collapse text-left text-[13px]"
             style={{ width: table.getTotalSize(), tableLayout: "fixed" }}
