@@ -501,7 +501,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Explode each relevant AI result into one row per catalog item.\nconst rows = [];\nconst inputs = $input.all();\nfor (let i = 0; i < inputs.length; i++) {\n  let result = inputs[i].json;\n  result = result.message?.content ?? result.content ?? result;\n  if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) { continue; } }\n  if (!result || result.is_catalog_relevant === false) continue;\n\n  let src = {};\n  try { src = $('Set Fields').itemMatching(i).json; } catch (e) {}\n\n  for (const item of (result.items ?? [])) {\n    rows.push({ json: {\n      action: item.action === 'update' ? 'update' : 'create',\n      match_line_id: item.match_line_id ?? null,\n      match_confidence: item.match_confidence ?? null,\n      status: 'in_progress',\n      label: result.label ?? null,\n      overall_confidence: result.overall_confidence ?? null,\n      needs_review: result.needs_review ?? null,\n      source_message_id: src.message_id ?? null,\n      artist_raw: item.artist_raw ?? null,\n      artist: item.artist ?? null,\n      title: item.title ?? null,\n      format: item.format ?? null,\n      ean: item.ean ?? null,\n      catalogue_no: item.catalogue_no ?? null,\n      release_date: item.release_date ?? null,\n      price_eur: item.price_eur ?? null,\n      calculation_group: item.calculation_group ?? null,\n      supplier_code: item.supplier_code ?? null,\n      custom_tariff: item.custom_tariff ?? null,\n      tax_rate: item.tax_rate ?? null,\n      unit_of_measure: item.unit_of_measure ?? null,\n      classification: item.classification ?? null,\n      excluded: item.excluded ?? false,\n      exclusion_reason: item.exclusion_reason ?? null,\n      missing_mandatory: item.missing_mandatory ?? [],\n      item_confidence: item.item_confidence ?? null,\n      item_notes: item.item_notes ?? null,\n    } });\n  }\n}\nreturn rows;"
+        "jsCode": "// Explode each relevant AI result into one row per catalog item,\n// mapped to the REAL catalog_lines columns. Extras go under `extra` (jsonb).\nconst rows = [];\nconst inputs = $input.all();\nfor (let i = 0; i < inputs.length; i++) {\n  let result = inputs[i].json;\n  result = result.message?.content ?? result.content ?? result;\n  if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) { continue; } }\n  if (!result || result.is_catalog_relevant === false) continue;\n\n  let src = {};\n  try { src = $('Set Fields').itemMatching(i).json; } catch (e) {}\n\n  for (const item of (result.items ?? [])) {\n    rows.push({ json: {\n      action: item.action === 'update' ? 'update' : 'create',   // routing only (ignored on write)\n      match_line_id: item.match_line_id ?? null,                // routing only (ignored on write)\n\n      status: item.excluded ? 'excluded' : 'in_progress',\n      label: result.label ?? null,\n      artist: item.artist ?? null,\n      title: item.title ?? null,\n      format: item.format ?? null,\n      ean: item.ean ?? null,\n      catalogue_no: item.catalogue_no ?? null,\n      release_date: item.release_date ?? null,\n      price_eur: item.price_eur ?? null,\n      calculation_group: item.calculation_group ?? null,\n      supplier_code: item.supplier_code ?? null,\n      unit: item.unit_of_measure ?? null,\n      missing_fields: item.missing_mandatory ?? [],\n      confidence: item.item_confidence ?? result.overall_confidence ?? null,\n      notes: item.item_notes ?? null,\n      extra: {\n        artist_raw: item.artist_raw ?? null,\n        custom_tariff: item.custom_tariff ?? null,\n        tax_rate: item.tax_rate ?? null,\n        classification: item.classification ?? null,\n        exclusion_reason: item.exclusion_reason ?? null,\n        match_confidence: item.match_confidence ?? null,\n        needs_review: result.needs_review ?? null,\n        source_message_id: src.message_id ?? null,\n      },\n    } });\n  }\n}\nreturn rows;"
       },
       "id": "f33ff24c-c67c-4946-b77e-54cd66e3232f",
       "name": "Build Catalog Rows",
@@ -548,7 +548,7 @@
       "parameters": {
         "tableId": "catalog_lines",
         "dataToSend": "autoMapInputData",
-        "inputsToIgnore": "action,match_line_id,match_confidence"
+        "inputsToIgnore": "action,match_line_id"
       },
       "id": "13235cad-3b36-4fe1-af59-95abfced30e2",
       "name": "Insert Catalog Line",
@@ -581,7 +581,7 @@
           ]
         },
         "dataToSend": "autoMapInputData",
-        "inputsToIgnore": "action,match_line_id,match_confidence"
+        "inputsToIgnore": "action,match_line_id"
       },
       "id": "0e9130c1-f3c7-4ede-8364-4e773ddcda6c",
       "name": "Update Catalog Line",
@@ -600,65 +600,14 @@
     },
     {
       "parameters": {
-        "mode": "manual",
-        "assignments": {
-          "assignments": [
-            {
-              "id": "dfc06c84-88e5-4339-9ff0-7ad01667c4f4",
-              "name": "message_id",
-              "value": "={{ $('Set Fields').item.json.message_id }}",
-              "type": "string"
-            },
-            {
-              "id": "945a5513-4cdf-41e5-9fea-2db1c770dbd4",
-              "name": "from",
-              "value": "={{ $('Set Fields').item.json.from }}",
-              "type": "string"
-            },
-            {
-              "id": "4678035b-3716-4cb8-9e20-27f168a07042",
-              "name": "subject",
-              "value": "={{ $('Set Fields').item.json.subject }}",
-              "type": "string"
-            },
-            {
-              "id": "be13b8a0-a2ac-4244-8b23-51fed029e943",
-              "name": "body",
-              "value": "={{ $('Set Fields').item.json.body }}",
-              "type": "string"
-            },
-            {
-              "id": "64cc70d8-032b-4ec2-9fde-1057e3afa61f",
-              "name": "attachments_text",
-              "value": "={{ $('Set Fields').item.json.attachments_text }}",
-              "type": "string"
-            },
-            {
-              "id": "f3bd173c-95ae-4986-b9b2-3d0d9f00b5e7",
-              "name": "ai_result",
-              "value": "={{ JSON.stringify($json.message.content) }}",
-              "type": "string"
-            },
-            {
-              "id": "b05d6e3f-397c-4c53-9b29-483b6273299b",
-              "name": "source",
-              "value": "manual_import",
-              "type": "string"
-            },
-            {
-              "id": "19e83424-c9d5-4831-b3fb-75cd109900ee",
-              "name": "status",
-              "value": "processed",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// One raw_entries row per processed source (audit + dedupe link),\n// mapped to the REAL raw_entries columns. Full payload kept in `extracted` (jsonb).\nconst out = [];\nconst inputs = $input.all();\nfor (let i = 0; i < inputs.length; i++) {\n  let result = inputs[i].json;\n  result = result.message?.content ?? result.content ?? result;\n  if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) {} }\n\n  let src = {};\n  try { src = $('Set Fields').itemMatching(i).json; } catch (e) {}\n\n  out.push({ json: {\n    received_at: src.date ?? null,\n    sender: src.from ?? null,\n    label: result?.label ?? null,\n    subject: src.subject ?? null,\n    source_email_id: src.message_id ?? null,\n    ean: result?.items?.[0]?.ean ?? null,\n    confidence: result?.overall_confidence ?? null,\n    status: 'new',\n    extracted: {\n      result: result ?? null,\n      source_body: src.body ?? null,\n      source_attachments: src.attachments_text ?? null,\n    },\n  } });\n}\nreturn out;"
       },
       "id": "d08d6ffa-2f54-45c9-91c1-e3ae9efb90a1",
       "name": "Build Raw Entry",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         2220,
         1020
