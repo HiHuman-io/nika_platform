@@ -11,9 +11,9 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Download, EyeOff, ListFilter, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, EyeOff, ListFilter, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
-import { updateRow } from "@/app/(app)/actions";
+import { bulkUpdateStatus, updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import { type FieldDef, inferFields, useRowDialogs } from "./row-form";
 import { Button } from "./ui/button";
@@ -129,6 +129,7 @@ export function CatalogTable({
   idKey = "id",
   entityLabel = "catalog line",
   selectionAction,
+  bulkApprove,
   storageKey = "catalog-table",
   canAdd = true,
   canEdit = true,
@@ -145,6 +146,8 @@ export function CatalogTable({
   idKey?: string;
   entityLabel?: string;
   selectionAction?: { label: string; pendingMessage: string };
+  /** Bulk action that sets the given status on all selected rows. */
+  bulkApprove?: { label: string; status: string };
   storageKey?: string;
   canAdd?: boolean;
   canEdit?: boolean;
@@ -259,7 +262,7 @@ export function CatalogTable({
     if (restored.current) sessionSave(`${storageKey}:visibility`, columnVisibility);
   }, [columnVisibility, storageKey]);
 
-  const showSelect = !!selectionAction;
+  const showSelect = !!selectionAction || !!bulkApprove;
   const hasActions = canEdit || canDelete || markIgnored;
 
   const columns = React.useMemo<TSColumnDef<Row>[]>(() => {
@@ -405,6 +408,20 @@ export function CatalogTable({
     );
   };
 
+  const [approving, setApproving] = React.useState(false);
+  const onApprove = async () => {
+    if (!bulkApprove) return;
+    const ids = table.getSelectedRowModel().rows.map((r) => r.id);
+    if (ids.length === 0) return;
+    setApproving(true);
+    const result = await bulkUpdateStatus(tableName, ids, bulkApprove.status);
+    setApproving(false);
+    if (!result.error) {
+      setRowSelection({});
+      router.refresh();
+    }
+  };
+
   const hideableColumns = table
     .getAllLeafColumns()
     .filter((c) => c.getCanHide());
@@ -499,6 +516,18 @@ export function CatalogTable({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {bulkApprove ? (
+            <Button
+              type="button"
+              disabled={selectedCount === 0 || approving}
+              onClick={onApprove}
+            >
+              <CheckCircle2 />
+              {approving ? "Approving…" : bulkApprove.label}
+              {selectedCount > 0 ? ` (${selectedCount})` : ""}
+            </Button>
+          ) : null}
 
           {selectionAction ? (
             <Button

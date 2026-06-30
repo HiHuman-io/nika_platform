@@ -59,7 +59,7 @@ const CATALOG_FIELDS: FieldDef[] = [
     key: "status",
     label: "Status",
     type: "select",
-    options: ["in_progress", "ready", "approved", "sent", "excluded"],
+    options: ["in_progress", "approved", "sent", "excluded"],
   },
 ];
 
@@ -93,6 +93,7 @@ export default async function CatalogPage() {
           columns={CATALOG_COLUMNS}
           fields={CATALOG_FIELDS}
           entityLabel="catalog line"
+          bulkApprove={{ label: "Approve", status: "approved" }}
           selectionAction={{
             label: "Send to Hermes",
             pendingMessage: "Hermes integration coming soon",
