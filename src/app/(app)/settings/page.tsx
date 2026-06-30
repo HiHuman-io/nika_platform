@@ -42,7 +42,7 @@ const SETTINGS_TABLES = [
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto max-w-6xl space-y-10">
+    <div className="space-y-10">
       <div>
         <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
           Settings

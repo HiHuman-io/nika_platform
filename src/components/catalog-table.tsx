@@ -15,7 +15,7 @@ import { Download, EyeOff, ListFilter, Pencil, Plus, Search, Send, SlidersHorizo
 
 import { updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
-import { type FieldDef, useRowDialogs } from "./row-form";
+import { type FieldDef, inferFields, useRowDialogs } from "./row-form";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
@@ -125,7 +125,7 @@ export function CatalogTable({
   table: tableName,
   rows,
   columns: specs,
-  fields,
+  fields: fieldsProp,
   idKey = "id",
   entityLabel = "catalog line",
   selectionAction,
@@ -141,7 +141,7 @@ export function CatalogTable({
   table: string;
   rows: Row[];
   columns: CatalogColumnSpec[];
-  fields: FieldDef[];
+  fields?: FieldDef[];
   idKey?: string;
   entityLabel?: string;
   selectionAction?: { label: string; pendingMessage: string };
@@ -155,6 +155,12 @@ export function CatalogTable({
   pinColumns?: string[];
 }) {
   const router = useRouter();
+  // Explicit fields when provided; otherwise infer them from the data so any
+  // table (e.g. Settings) gets working add/edit forms.
+  const fields = React.useMemo(
+    () => fieldsProp ?? inferFields(rows, idKey),
+    [fieldsProp, rows, idKey],
+  );
   const { openAdd, openEdit, openDelete, dialogs } = useRowDialogs({
     table: tableName,
     fields,

@@ -1,16 +1,16 @@
 import { createClient } from "@/utils/supabase/server";
-import { EditableTable, type FieldDef } from "./editable-table";
-import { type ColumnDef } from "./table-cells";
+import { CatalogTable } from "./catalog-table";
+import { type FieldDef } from "./row-form";
 
 /**
  * Server component: fetches a table (read-only here; writes happen via server
- * actions) and hands the rows to the interactive {@link EditableTable}. Query
- * errors are surfaced inline rather than thrown.
+ * actions) and hands the rows to the interactive {@link CatalogTable}, which
+ * provides resizable columns, per-column filters and CSV export. Query errors
+ * are surfaced inline rather than thrown.
  */
 export async function SupabaseEditableTable({
   table,
   limit = 500,
-  columns,
   fields,
   idKey,
   canAdd,
@@ -24,7 +24,6 @@ export async function SupabaseEditableTable({
 }: {
   table: string;
   limit?: number;
-  columns?: ColumnDef[];
   fields?: FieldDef[];
   idKey?: string;
   canAdd?: boolean;
@@ -49,20 +48,22 @@ export async function SupabaseEditableTable({
   }
 
   return (
-    <EditableTable
+    <CatalogTable
       table={table}
       rows={data ?? []}
-      columns={columns}
+      columns={[]}
       fields={fields}
       idKey={idKey}
       canAdd={canAdd}
       canEdit={canEdit}
       canDelete={canDelete}
+      markIgnored={markIgnored}
       searchPlaceholder={searchPlaceholder}
       entityLabel={entityLabel}
       addLabel={addLabel}
       selectionAction={selectionAction}
-      markIgnored={markIgnored}
+      storageKey={`${table}-table`}
+      pinColumns={[]}
     />
   );
 }
