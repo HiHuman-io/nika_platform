@@ -11,7 +11,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Download, EyeOff, ListFilter, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
 import { updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
@@ -23,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -70,6 +71,30 @@ function autoSizeWidth(key: string, label: string, rows: Row[]): number {
     if (len > maxChars) maxChars = len;
   }
   return Math.min(440, Math.max(96, Math.round(maxChars * 7.2 + 30)));
+}
+
+/** Build a UTF-8 CSV (Excel-friendly) from the given columns + rows and download it. */
+function downloadCsv(
+  filename: string,
+  columns: { key: string; label: string }[],
+  rows: Row[],
+) {
+  const esc = (val: unknown) => {
+    const t = toText(val);
+    return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const header = columns.map((c) => esc(c.label)).join(",");
+  const body = rows.map((r) => columns.map((c) => esc(r[c.key])).join(","));
+  const csv = String.fromCharCode(0xfeff) + [header, ...body].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function CatalogCell({
@@ -174,15 +199,31 @@ export function CatalogTable({
     return [...specs, ...extras];
   }, [specs, rows]);
 
-  // Live search filters rows before the table sees them.
+  // Live search + per-column filters narrow rows before the table sees them.
   const [query, setQuery] = React.useState("");
+  const [showFilters, setShowFilters] = React.useState(false);
+  const [colFilters, setColFilters] = React.useState<Record<string, string>>({});
   const data = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((row) =>
-      Object.values(row).some((v) => toText(v).toLowerCase().includes(q)),
-    );
-  }, [rows, query]);
+    const active = Object.entries(colFilters).filter(([, v]) => v.trim() !== "");
+    if (!q && active.length === 0) return rows;
+    return rows.filter((row) => {
+      if (
+        q &&
+        !Object.values(row).some((v) => toText(v).toLowerCase().includes(q))
+      ) {
+        return false;
+      }
+      for (const [key, val] of active) {
+        if (
+          !toText(row[key]).toLowerCase().includes(val.trim().toLowerCase())
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, query, colFilters]);
 
   const defaultVisibility = React.useMemo<VisibilityState>(() => {
     const v: VisibilityState = {};
@@ -362,6 +403,24 @@ export function CatalogTable({
     .getAllLeafColumns()
     .filter((c) => c.getCanHide());
 
+  // Export honours current column visibility + order (so hidden columns,
+  // e.g. a future Genre, are excluded from the file).
+  const exportColumns = () =>
+    table
+      .getVisibleLeafColumns()
+      .filter((c) => c.id !== "select" && c.id !== "actions")
+      .map((c) => ({
+        key: c.id,
+        label: (c.columnDef.meta as ColumnMeta | undefined)?.label ?? c.id,
+      }));
+  const onExportAll = () => downloadCsv(`${tableName}.csv`, exportColumns(), data);
+  const onExportSelected = () =>
+    downloadCsv(
+      `${tableName}-selected.csv`,
+      exportColumns(),
+      table.getSelectedRowModel().rows.map((r) => r.original),
+    );
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
@@ -400,6 +459,38 @@ export function CatalogTable({
                   </DropdownMenuCheckboxItem>
                 );
               })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            type="button"
+            variant={showFilters ? "default" : "outline"}
+            onClick={() => setShowFilters((s) => !s)}
+            aria-pressed={showFilters}
+          >
+            <ListFilter />
+            Filters
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline">
+                <Download />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Download CSV</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onExportAll}>
+                Export all (filtered) — {data.length}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={selectedCount === 0}
+                onSelect={onExportSelected}
+              >
+                Export selected{selectedCount > 0 ? ` — ${selectedCount}` : ""}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -468,7 +559,7 @@ export function CatalogTable({
                     return (
                       <th
                         key={header.id}
-                        className={`relative truncate border-b border-border bg-surface px-3 py-3 text-xs font-semibold uppercase tracking-wide text-muted ${
+                        className={`relative border-b border-border bg-surface px-3 py-3 align-top text-xs font-semibold uppercase tracking-wide text-muted ${
                           numeric ? "text-right" : ""
                         }`}
                         style={{
@@ -486,12 +577,14 @@ export function CatalogTable({
                           zIndex: pinned ? 30 : 20,
                         }}
                       >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
+                        <span className="block truncate">
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                        </span>
                         {header.column.getCanResize() ? (
                           <span
                             onMouseDown={header.getResizeHandler()}
@@ -501,6 +594,23 @@ export function CatalogTable({
                                 ? "bg-accent"
                                 : "bg-transparent hover:bg-accent/40"
                             }`}
+                          />
+                        ) : null}
+                        {showFilters &&
+                        header.column.id !== "select" &&
+                        header.column.id !== "actions" ? (
+                          <input
+                            value={colFilters[header.column.id] ?? ""}
+                            onChange={(e) =>
+                              setColFilters((p) => ({
+                                ...p,
+                                [header.column.id]: e.target.value,
+                              }))
+                            }
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            placeholder="Filter…"
+                            className="mt-1.5 block w-full rounded border border-border bg-background px-1.5 py-1 text-[11px] font-normal normal-case tracking-normal text-foreground outline-none focus:border-accent"
                           />
                         ) : null}
                       </th>
