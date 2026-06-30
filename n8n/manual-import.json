@@ -1,0 +1,898 @@
+{
+  "name": "Manual Import Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nika-import",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "21f52286-72bb-49d7-8b69-74a6d0b87494",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        620
+      ],
+      "webhookId": "0fcff10d-8612-4628-b95a-a7a8ca7ff767"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "manual_imports",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.import_id }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "processing"
+            }
+          ]
+        }
+      },
+      "id": "53e4bd95-b586-4fed-a36a-f1c0cbe1568d",
+      "name": "Mark Processing",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        60
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "senders",
+        "returnAll": true
+      },
+      "id": "1a597055-bd18-453e-9c5c-8fc0b9a5570e",
+      "name": "Senders",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        200
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "glossary",
+        "returnAll": true
+      },
+      "id": "c8e98c44-ef23-482f-8088-7ad5a2775883",
+      "name": "Glossary",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        320
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "exclusions",
+        "returnAll": true
+      },
+      "id": "da228bc0-a320-4076-ab08-8d569e6ff83a",
+      "name": "Exclusions",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        440
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "mandatory_fields",
+        "returnAll": true
+      },
+      "id": "4aeea648-95fa-4277-9e63-c358c6f6e5c2",
+      "name": "MandatoryFields",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        560
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "label_notes",
+        "returnAll": true
+      },
+      "id": "ebe662d5-8cce-4d83-baba-9040df5480b4",
+      "name": "LabelNotes",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        680
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "catalog_lines",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "in_progress"
+            }
+          ]
+        }
+      },
+      "id": "78a76adb-e1ea-4527-ac62-ec8aba769d1f",
+      "name": "Open Catalog Lines",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        240,
+        800
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.body.file_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "id": "2a6f6f8d-52b1-4713-8778-c0331241f2e7",
+      "name": "Download File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        240,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloud.llamaindex.ai/api/v1/parsing/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0d62abda-c47b-44a4-9a14-67b4735db069",
+      "name": "LlamaParse Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "48034b9d-5f4f-4fbf-bce6-b95f52d6a827",
+      "name": "Wait Parse",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        960
+      ],
+      "webhookId": "edf34235-046b-4312-bd75-07fd8dc4c983"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.cloud.llamaindex.ai/api/v1/parsing/job/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "4c32ecff-61b4-408e-821d-8aacce37f48e",
+      "name": "LlamaParse Job Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "349acb71-a267-47ca-b354-b3ca0fb9f8e2",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "SUCCESS",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "54534008-bd4a-40b5-beac-1c11282e1bcf",
+      "name": "If Parse Done",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.cloud.llamaindex.ai/api/v1/parsing/job/{{ $json.id }}/result/markdown",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "f87fe638-a0ff-44f8-9cc4-b0fab20b7bdb",
+      "name": "LlamaParse Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0cb379bd-e9ac-4864-ae73-9e98a28b0855",
+              "name": "from",
+              "value": "={{ $('Webhook').item.json.body.sender_email }}",
+              "type": "string"
+            },
+            {
+              "id": "d0214d12-0498-4941-9184-e991c904cf2e",
+              "name": "from_name",
+              "value": "={{ $('Webhook').item.json.body.sender_email }}",
+              "type": "string"
+            },
+            {
+              "id": "30dfac05-1bdb-4da7-b32f-162d938f1eb7",
+              "name": "subject",
+              "value": "={{ $('Webhook').item.json.body.file_name }}",
+              "type": "string"
+            },
+            {
+              "id": "6318d02b-abce-46d2-977c-753e604f9459",
+              "name": "date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "a1248fbc-f4c7-4b4f-a360-b2f93acdb8dd",
+              "name": "thread_id",
+              "value": "={{ $('Webhook').item.json.body.import_id }}",
+              "type": "string"
+            },
+            {
+              "id": "b06b8629-ed57-4776-903c-221e72e698c1",
+              "name": "message_id",
+              "value": "={{ $('Webhook').item.json.body.import_id }}",
+              "type": "string"
+            },
+            {
+              "id": "c2fb7042-5ca5-4d7a-86fa-bef61a2dca21",
+              "name": "body",
+              "value": "={{ ($('Webhook').item.json.body.context || '').slice(0, 8000) }}",
+              "type": "string"
+            },
+            {
+              "id": "2524cab3-a76c-4ab2-ad44-bcc09a13a75c",
+              "name": "attachments_text",
+              "value": "={{ ($json.markdown || '').slice(0, 40000) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4002126a-6a5f-4588-8e75-983a0304da6a",
+      "name": "Set Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1560,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a data-extraction assistant for Nika, a distributor of CDs, vinyl and other\nrecorded music. Record labels send Nika catalog updates — by email or as uploaded\nfiles (Excel/PDF lists). These are messy and inconsistent: many formats, frequent\nacronyms or code-words, and often incomplete. Your job is to read ONE source (an\nemail or one uploaded file) and turn it into clean, structured catalog data.\n\nYou do these things:\n1. Decide whether the source is relevant to the music catalog at all.\n2. Identify which record label it is from, using the sender→label list provided.\n3. Extract every catalog item and its fields, applying the rules provided.\n4. For each item, decide whether it is a NEW catalog line or an UPDATE to an\n   existing open line, using the OPEN CATALOG LINES provided.\n\nThe user message contains a RULES section (sender→label map, glossary of\nacronyms, exclusion keywords, mandatory fields, artist-formatting rules, per-label\nnotes), the OPEN CATALOG LINES, and the SOURCE. Apply the rules exactly as given.\nThey change over time, so never rely on memory of previous rules — only use what is\nin this message.\n\nCritical principles:\n- Never invent or guess data. If a field is not present, return null. Do not\n  fabricate barcodes, prices, dates, codes, or titles.\n- Output the EAN/barcode exactly as written, as a STRING, preserving leading zeros.\n  Never turn it into a number.\n- Work ONLY from this source. Do not assume details from other emails/files. If an\n  item is missing required fields, extract what is there and flag it.\n- One source may contain zero, one, or many items (e.g. a release list). Return one\n  entry per item.\n- Be conservative with confidence. When unsure, lower confidence and flag for review\n  instead of guessing.\n- Decode acronyms/code-words using the glossary. If you hit an acronym or code-word\n  that is NOT in the glossary and seems important, flag it — do not guess its meaning.\n- If the sender is not in the sender→label map, set label to null and flag it.\n- Apply the exclusion keywords: if an item matches one, set excluded=true with the\n  reason, but still extract it.\n- Apply the artist-formatting rules to produce a normalized `artist`, but ALWAYS keep\n  the original text in `artist_raw`.\n- Some labels use code-names for high-profile artists (see per-label notes). If you\n  suspect a code-name or a sensitive/high-value case, flag it for manual review and\n  lower confidence — do not resolve it yourself.\n- Normalize release_date to YYYY-MM-DD. If it is missing, ambiguous, or implausible\n  (e.g. a clearly wrong year like 1900), set it to null and flag it.\n\nMatching against existing OPEN CATALOG LINES (incremental updates):\n- Catalog data often arrives piece by piece across several sources. The OPEN CATALOG\n  LINES are entries with status \"in_progress\" that are not yet complete. They are the\n  ONLY update candidates.\n- For every item you extract, decide whether it is the SAME physical product as one\n  of the open lines. Match primarily on EAN/barcode, then catalogue number, then\n  artist + title + format together. Only match when you are confident.\n- If it matches an open line: set \"action\" to \"update\", set \"match_line_id\" to that\n  line's id, and return the MERGED record — start from the existing open line's\n  values and overlay any new or more-complete values from this source. Fill\n  previously-missing fields. NEVER erase a value that already exists unless this\n  source explicitly corrects it.\n- If it does not match any open line: set \"action\" to \"create\" and \"match_line_id\"\n  to null.\n- If you are unsure whether it matches: do NOT update. Set \"action\" to \"create\",\n  lower confidence, and flag needs_review with the reason.\n- Only the provided open lines are candidates. NEVER invent a match_line_id.\n\nSome fields map to the Hermes system. The following are OPTIONAL and labels often\nomit them — extract only if clearly present, otherwise null, and never guess them:\n- custom_tariff   (the customs tariff code)\n- tax_rate        (the VAT/tax rate, e.g. 22)\n- unit_of_measure (UM, e.g. piece/KS)\n- classification  (the product classification/category)\n\nRespond with a SINGLE valid JSON object and NOTHING else — no prose, no markdown, no\ncode fences. Use exactly this shape:\n\n{\n  \"is_catalog_relevant\": boolean,\n  \"relevance_reason\": string,\n  \"label\": string | null,\n  \"sender_recognized\": boolean,\n  \"overall_confidence\": number,\n  \"needs_review\": boolean,\n  \"review_reasons\": string[],\n  \"items\": [\n    {\n      \"action\": \"create\" | \"update\",\n      \"match_line_id\": string | null,\n      \"match_confidence\": number,\n      \"artist_raw\": string | null,\n      \"artist\": string | null,\n      \"title\": string | null,\n      \"format\": string | null,\n      \"ean\": string | null,\n      \"catalogue_no\": string | null,\n      \"release_date\": string | null,\n      \"price_eur\": number | null,\n      \"calculation_group\": string | null,\n      \"supplier_code\": string | null,\n      \"custom_tariff\": string | null,\n      \"tax_rate\": number | null,\n      \"unit_of_measure\": string | null,\n      \"classification\": string | null,\n      \"excluded\": boolean,\n      \"exclusion_reason\": string | null,\n      \"missing_mandatory\": string[],\n      \"item_confidence\": number,\n      \"item_notes\": string | null\n    }\n  ]\n}\n\nIf the source is not catalog-relevant, set is_catalog_relevant=false, give the\nreason, and return an empty items array."
+            },
+            {
+              "role": "user",
+              "content": "RULES (apply exactly; current rules, may change):\n\nSender → label map:\n{{ JSON.stringify($('Senders').all().map(i => i.json)) }}\n\nGlossary:\n{{ JSON.stringify($('Glossary').all().map(i => i.json)) }}\n\nExclusion keywords:\n{{ JSON.stringify($('Exclusions').all().map(i => i.json)) }}\n\nMandatory fields:\n{{ JSON.stringify($('MandatoryFields').all().map(i => i.json)) }}\n\nPer-label notes:\n{{ JSON.stringify($('LabelNotes').all().map(i => i.json)) }}\n\nOPEN CATALOG LINES (status=\"in_progress\"; the ONLY candidates to UPDATE instead of creating new — they may be incomplete and awaiting more info):\n{{ JSON.stringify($('Open Catalog Lines').all().map(i => i.json)) }}\n\nArtist-formatting rules:\n- Individual artist: SURNAME FIRSTNAME in capitals, no comma (e.g. \"Joni Mitchell\" -> \"MITCHELL JONI\").\n- Band/group: full group name in capitals, dropping a leading \"The\" (e.g. \"The Doors\" -> \"DOORS\").\n- Multiple artists on one item: separate with a backslash ( \\ ).\n- Soundtracks/compilations with no single artist: use the glossary marker (e.g. OST).\n\nSOURCE TO PROCESS (uploaded file):\nFrom: {{ $json.from_name }} <{{ $json.from }}>\nFile: {{ $json.subject }}\nDate: {{ $json.date }}\nUploader context/notes:\n{{ $json.body }}\n\nFile contents (extracted text):\n{{ $json.attachments_text }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "92f6e6f5-a12a-471c-9cff-3685dfeca259",
+      "name": "AI Intelligence",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1780,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "a97c1f79-4cf8-4157-83fd-4649598948d5",
+              "leftValue": "={{ $json.message.content.is_catalog_relevant }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5178b6cb-7307-48b7-b323-28c9c26bb9e2",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2000,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "manual_imports",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.import_id }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "id": "717915a9-a734-474a-8e89-acd6db7122d2",
+      "name": "Mark Done",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        1080
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Explode each relevant AI result into one row per catalog item.\nconst rows = [];\nconst inputs = $input.all();\nfor (let i = 0; i < inputs.length; i++) {\n  let result = inputs[i].json;\n  result = result.message?.content ?? result.content ?? result;\n  if (typeof result === 'string') { try { result = JSON.parse(result); } catch (e) { continue; } }\n  if (!result || result.is_catalog_relevant === false) continue;\n\n  let src = {};\n  try { src = $('Set Fields').itemMatching(i).json; } catch (e) {}\n\n  for (const item of (result.items ?? [])) {\n    rows.push({ json: {\n      action: item.action === 'update' ? 'update' : 'create',\n      match_line_id: item.match_line_id ?? null,\n      match_confidence: item.match_confidence ?? null,\n      status: 'in_progress',\n      label: result.label ?? null,\n      overall_confidence: result.overall_confidence ?? null,\n      needs_review: result.needs_review ?? null,\n      source_message_id: src.message_id ?? null,\n      artist_raw: item.artist_raw ?? null,\n      artist: item.artist ?? null,\n      title: item.title ?? null,\n      format: item.format ?? null,\n      ean: item.ean ?? null,\n      catalogue_no: item.catalogue_no ?? null,\n      release_date: item.release_date ?? null,\n      price_eur: item.price_eur ?? null,\n      calculation_group: item.calculation_group ?? null,\n      supplier_code: item.supplier_code ?? null,\n      custom_tariff: item.custom_tariff ?? null,\n      tax_rate: item.tax_rate ?? null,\n      unit_of_measure: item.unit_of_measure ?? null,\n      classification: item.classification ?? null,\n      excluded: item.excluded ?? false,\n      exclusion_reason: item.exclusion_reason ?? null,\n      missing_mandatory: item.missing_mandatory ?? [],\n      item_confidence: item.item_confidence ?? null,\n      item_notes: item.item_notes ?? null,\n    } });\n  }\n}\nreturn rows;"
+      },
+      "id": "f33ff24c-c67c-4946-b77e-54cd66e3232f",
+      "name": "Build Catalog Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cbaf08ba-6a91-4509-8da3-52e2dd51809c",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "create",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1d51b081-36f5-4b86-9386-cd8a0228872b",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2440,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "catalog_lines",
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "action,match_line_id,match_confidence"
+      },
+      "id": "13235cad-3b36-4fe1-af59-95abfced30e2",
+      "name": "Insert Catalog Line",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        700
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "catalog_lines",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.match_line_id }}"
+            }
+          ]
+        },
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "action,match_line_id,match_confidence"
+      },
+      "id": "0e9130c1-f3c7-4ede-8364-4e773ddcda6c",
+      "name": "Update Catalog Line",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        900
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "dfc06c84-88e5-4339-9ff0-7ad01667c4f4",
+              "name": "message_id",
+              "value": "={{ $('Set Fields').item.json.message_id }}",
+              "type": "string"
+            },
+            {
+              "id": "945a5513-4cdf-41e5-9fea-2db1c770dbd4",
+              "name": "from",
+              "value": "={{ $('Set Fields').item.json.from }}",
+              "type": "string"
+            },
+            {
+              "id": "4678035b-3716-4cb8-9e20-27f168a07042",
+              "name": "subject",
+              "value": "={{ $('Set Fields').item.json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "be13b8a0-a2ac-4244-8b23-51fed029e943",
+              "name": "body",
+              "value": "={{ $('Set Fields').item.json.body }}",
+              "type": "string"
+            },
+            {
+              "id": "64cc70d8-032b-4ec2-9fde-1057e3afa61f",
+              "name": "attachments_text",
+              "value": "={{ $('Set Fields').item.json.attachments_text }}",
+              "type": "string"
+            },
+            {
+              "id": "f3bd173c-95ae-4986-b9b2-3d0d9f00b5e7",
+              "name": "ai_result",
+              "value": "={{ JSON.stringify($json.message.content) }}",
+              "type": "string"
+            },
+            {
+              "id": "b05d6e3f-397c-4c53-9b29-483b6273299b",
+              "name": "source",
+              "value": "manual_import",
+              "type": "string"
+            },
+            {
+              "id": "19e83424-c9d5-4831-b3fb-75cd109900ee",
+              "name": "status",
+              "value": "processed",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d08d6ffa-2f54-45c9-91c1-e3ae9efb90a1",
+      "name": "Build Raw Entry",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2220,
+        1020
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "raw_entries",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "f16e421f-3fe9-4866-9d8f-4f7d24044b6e",
+      "name": "Insert Raw Entry",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        1020
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mark Processing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Senders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Glossary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Exclusions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MandatoryFields",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LabelNotes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Open Catalog Lines",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "LlamaParse Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LlamaParse Upload": {
+      "main": [
+        [
+          {
+            "node": "Wait Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Parse": {
+      "main": [
+        [
+          {
+            "node": "LlamaParse Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LlamaParse Job Status": {
+      "main": [
+        [
+          {
+            "node": "If Parse Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Parse Done": {
+      "main": [
+        [
+          {
+            "node": "LlamaParse Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LlamaParse Result": {
+      "main": [
+        [
+          {
+            "node": "Set Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Intelligence": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Build Catalog Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Raw Entry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Catalog Rows": {
+      "main": [
+        [
+          {
+            "node": "Route Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Action": {
+      "main": [
+        [
+          {
+            "node": "Insert Catalog Line",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Catalog Line",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Raw Entry": {
+      "main": [
+        [
+          {
+            "node": "Insert Raw Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

@@ -12,6 +12,7 @@ import { createClient } from "@/utils/supabase/server";
 const TABLE_ROUTES = {
   catalog_lines: "/catalog",
   raw_entries: "/raw-entries",
+  manual_imports: "/import",
   senders: "/settings",
   glossary: "/settings",
   exclusions: "/settings",
