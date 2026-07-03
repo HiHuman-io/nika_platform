@@ -16,12 +16,18 @@ export type ColumnDef = {
 
 // Light-tinted background with darker same-colour text — legible on light.
 const STATUS_STYLES: Record<string, string> = {
-  in_progress: "border-amber-200 bg-amber-50 text-amber-700",
-  ready: "border-teal-200 bg-teal-50 text-teal-700",
-  approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  sent: "border-violet-200 bg-violet-50 text-violet-700",
-  excluded: "border-red-200 bg-red-50 text-red-700",
-  ignored: "border-zinc-200 bg-zinc-100 text-zinc-600",
+  in_progress:
+    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-300",
+  ready:
+    "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-400/25 dark:bg-teal-400/10 dark:text-teal-300",
+  approved:
+    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300",
+  sent:
+    "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/25 dark:bg-violet-400/10 dark:text-violet-300",
+  excluded:
+    "border-red-200 bg-red-50 text-red-700 dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-300",
+  ignored:
+    "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-500/30 dark:bg-zinc-500/10 dark:text-zinc-300",
 };
 
 export const HIDE_CLASS: Record<NonNullable<ColumnDef["hideBelow"]>, string> = {

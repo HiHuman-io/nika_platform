@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut } from "@/app/login/actions";
 import { createClient } from "@/utils/supabase/server";
 
@@ -37,12 +38,13 @@ export default async function AppLayout({
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {user.email ? (
             <span className="hidden text-sm text-white/80 sm:inline">
               {user.email}
             </span>
           ) : null}
+          <ThemeToggle />
           <form action={signOut}>
             <button
               type="submit"
