@@ -41,21 +41,21 @@ export type CatalogColumnSpec = {
 
 type ColumnMeta = { variant?: CatalogVariant; label: string };
 
-function sessionLoad<T>(key: string, fallback: T): T {
+function loadPref<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
-    const raw = window.sessionStorage.getItem(key);
+    const raw = window.localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T) : fallback;
   } catch {
     return fallback;
   }
 }
-function sessionSave(key: string, value: unknown) {
+function savePref(key: string, value: unknown) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(key, JSON.stringify(value));
+    window.localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    /* sessionStorage may be unavailable; widths just won't persist */
+    /* localStorage may be unavailable; preferences just won't persist */
   }
 }
 
@@ -244,23 +244,28 @@ export function CatalogTable({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(defaultVisibility);
   const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({});
+  const [columnOrder, setColumnOrder] = React.useState<string[]>([]);
 
   // Restore session widths/visibility after mount (avoids hydration mismatch).
   const restored = React.useRef(false);
   React.useEffect(() => {
-    setColumnSizing(sessionLoad(`${storageKey}:sizing`, {}));
+    setColumnSizing(loadPref(`${storageKey}:sizing`, {}));
     setColumnVisibility((v) => ({
       ...v,
-      ...sessionLoad<VisibilityState>(`${storageKey}:visibility`, {}),
+      ...loadPref<VisibilityState>(`${storageKey}:visibility`, {}),
     }));
+    setColumnOrder(loadPref<string[]>(`${storageKey}:order`, []));
     restored.current = true;
   }, [storageKey]);
   React.useEffect(() => {
-    if (restored.current) sessionSave(`${storageKey}:sizing`, columnSizing);
+    if (restored.current) savePref(`${storageKey}:sizing`, columnSizing);
   }, [columnSizing, storageKey]);
   React.useEffect(() => {
-    if (restored.current) sessionSave(`${storageKey}:visibility`, columnVisibility);
+    if (restored.current) savePref(`${storageKey}:visibility`, columnVisibility);
   }, [columnVisibility, storageKey]);
+  React.useEffect(() => {
+    if (restored.current) savePref(`${storageKey}:order`, columnOrder);
+  }, [columnOrder, storageKey]);
 
   const showSelect = !!selectionAction || !!bulkApprove;
   const hasActions = canEdit || canDelete || markIgnored;
@@ -383,13 +388,14 @@ export function CatalogTable({
   const table = useReactTable({
     data,
     columns,
-    state: { rowSelection, columnVisibility, columnSizing },
+    state: { rowSelection, columnVisibility, columnSizing, columnOrder },
     getRowId: (row) => String(row[idKey]),
     enableRowSelection: true,
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
+    onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     initialState: {
       columnPinning: {
@@ -398,6 +404,20 @@ export function CatalogTable({
       },
     },
   });
+
+  // Reorder a data column before the drop-target column (drag-and-drop).
+  const moveColumn = (from: string, to: string) => {
+    setColumnOrder((prev) => {
+      const base = prev.length
+        ? prev
+        : table.getAllLeafColumns().map((c) => c.id);
+      const next = base.filter((id) => id !== from);
+      const idx = next.indexOf(to);
+      if (idx < 0) return prev;
+      next.splice(idx, 0, from);
+      return next;
+    });
+  };
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedCount = selectedRows.length;
@@ -599,12 +619,28 @@ export function CatalogTable({
                       | ColumnMeta
                       | undefined;
                     const numeric = meta?.variant === "number";
+                    const isData =
+                      header.column.id !== "select" &&
+                      header.column.id !== "actions";
                     return (
                       <th
                         key={header.id}
                         className={`relative border-b border-border bg-surface px-3 py-3 align-top text-xs font-semibold uppercase tracking-wide text-muted ${
                           numeric ? "text-right" : ""
                         }`}
+                        onDragOver={isData ? (e) => e.preventDefault() : undefined}
+                        onDrop={
+                          isData
+                            ? (e) => {
+                                e.preventDefault();
+                                const from =
+                                  e.dataTransfer.getData("text/plain");
+                                if (from && from !== header.column.id) {
+                                  moveColumn(from, header.column.id);
+                                }
+                              }
+                            : undefined
+                        }
                         style={{
                           width: header.getSize(),
                           position: "sticky",
@@ -620,7 +656,22 @@ export function CatalogTable({
                           zIndex: pinned ? 30 : 20,
                         }}
                       >
-                        <span className="block truncate">
+                        <span
+                          className={`block truncate ${
+                            isData ? "cursor-grab active:cursor-grabbing" : ""
+                          }`}
+                          draggable={isData}
+                          onDragStart={
+                            isData
+                              ? (e) =>
+                                  e.dataTransfer.setData(
+                                    "text/plain",
+                                    header.column.id,
+                                  )
+                              : undefined
+                          }
+                          title={isData ? "Drag to reorder" : undefined}
+                        >
                           {header.isPlaceholder
                             ? null
                             : flexRender(
