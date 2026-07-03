@@ -11,14 +11,7 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "artist", label: "Artist", size: 140 },
   { key: "title", label: "Title", size: 190 },
   { key: "status", label: "Status", variant: "status", size: 120 },
-  {
-    key: "hermes_sent",
-    label: "Hermes",
-    variant: "status",
-    size: 115,
-    // Derived: sent once it has a sent_at timestamp or status = sent.
-    accessor: (r) => (r.sent_at || r.status === "sent" ? "sent" : "not_sent"),
-  },
+  { key: "hermes_sent", label: "Hermes", variant: "status", size: 115 },
   { key: "format", label: "Format", size: 95 },
   { key: "unit", label: "Unit", variant: "number", size: 65 },
   { key: "label", label: "Label", size: 120 },
@@ -78,6 +71,13 @@ export default async function CatalogPage() {
     .select("*")
     .limit(500);
 
+  // Derive the "sent to Hermes" indicator as a real field (server-side), so no
+  // function needs to cross into the client table component.
+  const rows = (data ?? []).map((r) => ({
+    ...r,
+    hermes_sent: r.sent_at || r.status === "sent" ? "sent" : "not_sent",
+  }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -97,7 +97,7 @@ export default async function CatalogPage() {
       ) : (
         <CatalogTable
           table="catalog_lines"
-          rows={data ?? []}
+          rows={rows}
           columns={CATALOG_COLUMNS}
           fields={CATALOG_FIELDS}
           entityLabel="catalog line"

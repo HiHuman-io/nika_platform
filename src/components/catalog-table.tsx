@@ -37,8 +37,6 @@ export type CatalogColumnSpec = {
   variant?: CatalogVariant;
   size?: number;
   hidden?: boolean;
-  /** Derive the cell value (for computed columns not backed by a data field). */
-  accessor?: (row: Row) => unknown;
 };
 
 type ColumnMeta = { variant?: CatalogVariant; label: string };
@@ -297,7 +295,7 @@ export function CatalogTable({
 
     const dataCols: TSColumnDef<Row>[] = allSpecs.map((s) => ({
       id: s.key,
-      accessorFn: (row: Row) => (s.accessor ? s.accessor(row) : row[s.key]),
+      accessorKey: s.key,
       header: s.label,
       // Explicit size when given; otherwise fit the content so text isn't clipped.
       size: s.size ?? autoSizeWidth(s.key, s.label, rows),
