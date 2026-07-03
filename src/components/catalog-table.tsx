@@ -542,7 +542,7 @@ export function CatalogTable({
               type="button"
               disabled={selectedCount === 0}
               onClick={onHermes}
-              className="border-0 bg-violet-600 text-white shadow-[0_0_16px_-2px_rgba(168,85,247,0.75)] hover:bg-violet-500 hover:shadow-[0_0_22px_0_rgba(168,85,247,0.95)]"
+              className="border-0 bg-pink-600 text-white shadow-[0_0_16px_-2px_rgba(236,72,153,0.85)] hover:bg-pink-500 hover:shadow-[0_0_24px_0_rgba(236,72,153,1)]"
             >
               <Send />
               {selectionAction.label}
