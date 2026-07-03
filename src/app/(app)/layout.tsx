@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/sidebar";
 import { signOut } from "@/app/login/actions";
@@ -22,9 +23,19 @@ export default async function AppLayout({
     <div className="flex min-h-full flex-1 flex-col">
       {/* Full-width brand bar across the entire top of the screen. */}
       <header className="flex h-14 shrink-0 items-center justify-between px-6 [background:var(--header-gradient)] [box-shadow:inset_0_-1px_0_0_rgba(255,255,255,0.12)]">
-        <span className="font-heading text-base font-semibold tracking-tight text-white">
-          Nika Catalog
-        </span>
+        <div className="flex items-center gap-2.5">
+          <Image
+            src="/nika-logo.jpg"
+            alt="Nika"
+            width={32}
+            height={32}
+            priority
+            className="rounded-sm"
+          />
+          <span className="font-heading text-base font-semibold tracking-tight text-white">
+            Nika Catalog
+          </span>
+        </div>
 
         <div className="flex items-center gap-4">
           {user.email ? (
