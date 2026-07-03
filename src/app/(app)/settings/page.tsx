@@ -1,4 +1,5 @@
 import { SupabaseEditableTable } from "@/components/supabase-editable-table";
+import { Tabs } from "@/components/tabs";
 
 export const metadata = { title: "Settings · Nika" };
 
@@ -52,30 +53,29 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {SETTINGS_TABLES.map(({ table, title, entity, helper, example }) => (
-        <section key={table} className="space-y-3">
-          <div className="space-y-1">
-            <h2 className="font-heading text-xs font-semibold uppercase tracking-wider text-muted">
-              {title}
-            </h2>
+      <Tabs
+        tabs={SETTINGS_TABLES.map((t) => ({ value: t.table, label: t.title }))}
+      >
+        {SETTINGS_TABLES.map(({ table, title, entity, helper, example }) => (
+          <section key={table} className="space-y-3">
             <p className="text-sm text-muted">
               {helper}
               {example ? (
                 <span className="text-muted/70"> e.g. {example}</span>
               ) : null}
             </p>
-          </div>
-          <SupabaseEditableTable
-            table={table}
-            canAdd
-            canEdit
-            canDelete
-            searchPlaceholder={`Search ${title.toLowerCase()}…`}
-            entityLabel={entity}
-            addLabel="Add"
-          />
-        </section>
-      ))}
+            <SupabaseEditableTable
+              table={table}
+              canAdd
+              canEdit
+              canDelete
+              searchPlaceholder={`Search ${title.toLowerCase()}…`}
+              entityLabel={entity}
+              addLabel="Add"
+            />
+          </section>
+        ))}
+      </Tabs>
     </div>
   );
 }

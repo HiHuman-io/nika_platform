@@ -170,7 +170,7 @@ export function RowFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent side="right">
         <DialogHeader>
           <DialogTitle>
             {mode === "add" ? `Add ${entityLabel}` : `Edit ${entityLabel}`}
@@ -182,15 +182,10 @@ export function RowFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-4">
-          <div className="grid max-h-[55vh] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col gap-4">
+          <div className="grid min-h-0 flex-1 auto-rows-min gap-4 overflow-y-auto pr-1">
             {fields.map((f) => (
-              <div
-                key={f.key}
-                className={`space-y-1.5 ${
-                  f.type === "textarea" ? "sm:col-span-2" : ""
-                }`}
-              >
+              <div key={f.key} className="space-y-1.5">
                 <Label htmlFor={`field-${f.key}`}>
                   {f.label}
                   {f.required ? (

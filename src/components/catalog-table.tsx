@@ -658,7 +658,18 @@ export function CatalogTable({
               {table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="group transition-colors hover:bg-surface-hover/60"
+                  onClick={(e) => {
+                    // Ignore clicks on interactive controls (checkbox, buttons…).
+                    if (
+                      (e.target as HTMLElement).closest(
+                        'button, input, a, [role="checkbox"]',
+                      )
+                    ) {
+                      return;
+                    }
+                    openEdit(row.original);
+                  }}
+                  className="group cursor-pointer transition-colors hover:bg-surface-hover/60"
                   data-selected={row.getIsSelected()}
                 >
                   {row.getVisibleCells().map((cell) => {
