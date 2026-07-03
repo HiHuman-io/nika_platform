@@ -37,6 +37,8 @@ export type CatalogColumnSpec = {
   variant?: CatalogVariant;
   size?: number;
   hidden?: boolean;
+  /** Derive the cell value (for computed columns not backed by a data field). */
+  accessor?: (row: Row) => unknown;
 };
 
 type ColumnMeta = { variant?: CatalogVariant; label: string };
@@ -295,7 +297,7 @@ export function CatalogTable({
 
     const dataCols: TSColumnDef<Row>[] = allSpecs.map((s) => ({
       id: s.key,
-      accessorKey: s.key,
+      accessorFn: (row: Row) => (s.accessor ? s.accessor(row) : row[s.key]),
       header: s.label,
       // Explicit size when given; otherwise fit the content so text isn't clipped.
       size: s.size ?? autoSizeWidth(s.key, s.label, rows),
@@ -399,7 +401,15 @@ export function CatalogTable({
     },
   });
 
-  const selectedCount = table.getSelectedRowModel().rows.length;
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedCount = selectedRows.length;
+  // How many selected rows can still be approved (not already approved/sent).
+  const approvableCount = bulkApprove
+    ? selectedRows.filter((r) => {
+        const s = r.original.status;
+        return s !== bulkApprove.status && s !== "sent";
+      }).length
+    : 0;
   const [hermesMessage, setHermesMessage] = React.useState<string | null>(null);
   const onHermes = () => {
     if (!selectionAction) return;
@@ -520,21 +530,21 @@ export function CatalogTable({
           {bulkApprove ? (
             <Button
               type="button"
-              disabled={selectedCount === 0 || approving}
+              disabled={approvableCount === 0 || approving}
               onClick={onApprove}
             >
               <CheckCircle2 />
               {approving ? "Approving…" : bulkApprove.label}
-              {selectedCount > 0 ? ` (${selectedCount})` : ""}
+              {approvableCount > 0 ? ` (${approvableCount})` : ""}
             </Button>
           ) : null}
 
           {selectionAction ? (
             <Button
               type="button"
-              variant="outline"
               disabled={selectedCount === 0}
               onClick={onHermes}
+              className="border-0 bg-violet-600 text-white shadow-[0_0_16px_-2px_rgba(168,85,247,0.75)] hover:bg-violet-500 hover:shadow-[0_0_22px_0_rgba(168,85,247,0.95)]"
             >
               <Send />
               {selectionAction.label}

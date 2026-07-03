@@ -10,6 +10,15 @@ export const metadata = { title: "Catalog · Nika" };
 const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "artist", label: "Artist", size: 140 },
   { key: "title", label: "Title", size: 190 },
+  { key: "status", label: "Status", variant: "status", size: 120 },
+  {
+    key: "hermes_sent",
+    label: "Hermes",
+    variant: "status",
+    size: 115,
+    // Derived: sent once it has a sent_at timestamp or status = sent.
+    accessor: (r) => (r.sent_at || r.status === "sent" ? "sent" : "not_sent"),
+  },
   { key: "format", label: "Format", size: 95 },
   { key: "unit", label: "Unit", variant: "number", size: 65 },
   { key: "label", label: "Label", size: 120 },
@@ -26,7 +35,6 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "stran", label: "Stran", size: 80 },
   { key: "ne", label: "Ne", size: 70 },
   { key: "calculation_group", label: "Calc group", size: 130 },
-  { key: "status", label: "Status", variant: "status", size: 120 },
   // Genre is hidden by default → kept out of the catalog export.
   { key: "genre", label: "Genre", size: 110, hidden: true },
   { key: "id", label: "ID", size: 80, hidden: true },
