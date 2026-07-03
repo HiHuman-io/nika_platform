@@ -21,11 +21,8 @@ export function ThemeToggle() {
   const toggle = () => {
     const next = !isDark();
     document.documentElement.classList.toggle("dark", next);
-    try {
-      window.localStorage.setItem("theme", next ? "dark" : "light");
-    } catch {
-      /* ignore */
-    }
+    // Persist in a cookie so the server renders the right theme on next load.
+    document.cookie = `theme=${next ? "dark" : "light"}; path=/; max-age=31536000; samesite=lax`;
   };
 
   return (
