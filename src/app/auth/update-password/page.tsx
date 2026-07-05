@@ -8,10 +8,37 @@ import { AuthShell } from "@/components/auth-shell";
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
+  const supabase = React.useMemo(() => createClient(), []);
+
+  // The recovery session arrives via the URL when the user clicks the email
+  // link; the client picks it up. Wait for it before allowing a password change.
+  const [ready, setReady] = React.useState(false);
+  const [linkInvalid, setLinkInvalid] = React.useState(false);
+
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active && session) setReady(true);
+    });
+    // If no recovery session appears, the link is bad/expired.
+    const timer = setTimeout(async () => {
+      const { data } = await supabase.auth.getSession();
+      if (active && !data.session) setLinkInvalid(true);
+    }, 4000);
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+      clearTimeout(timer);
+    };
+  }, [supabase]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -25,7 +52,6 @@ export default function UpdatePasswordPage() {
     }
     setPending(true);
     setError(null);
-    const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password });
     setPending(false);
     if (error) {
@@ -38,6 +64,21 @@ export default function UpdatePasswordPage() {
     }
     router.replace("/catalog");
   };
+
+  if (linkInvalid) {
+    return (
+      <AuthShell title="Link expired" subtitle="This reset link is invalid or has expired">
+        <div className="space-y-4 text-center">
+          <Link
+            href="/auth/forgot"
+            className="inline-block rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+          >
+            Request a new link
+          </Link>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell
@@ -57,9 +98,10 @@ export default function UpdatePasswordPage() {
             type="password"
             autoComplete="new-password"
             required
+            disabled={!ready}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-60"
           />
         </div>
 
@@ -75,9 +117,10 @@ export default function UpdatePasswordPage() {
             type="password"
             autoComplete="new-password"
             required
+            disabled={!ready}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/30 disabled:opacity-60"
           />
         </div>
 
@@ -89,10 +132,10 @@ export default function UpdatePasswordPage() {
 
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || !ready}
           className="w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {pending ? "Saving…" : "Update password"}
+          {!ready ? "Verifying link…" : pending ? "Saving…" : "Update password"}
         </button>
 
         <div className="text-center">
