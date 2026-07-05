@@ -1,0 +1,20 @@
+# Keep the build context (and image) small.
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+npm-debug.log*
+yarn-error.log*
+Dockerfile
+.dockerignore
+docker-compose.yml
+deploy
+n8n
+supabase
+.claude
+.vscode
+.idea
+coverage
+*.md

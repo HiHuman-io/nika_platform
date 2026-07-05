@@ -1,0 +1,28 @@
+# Isolated: unique container + network, bound to localhost only (reverse proxy fronts it).
+services:
+  nika-catalog:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* are needed at BUILD time (inlined into the client bundle).
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+    image: nika-catalog:latest
+    container_name: nika-catalog
+    restart: unless-stopped
+    # Localhost only — never exposed publicly; nginx proxies to it.
+    ports:
+      - "127.0.0.1:3400:3000"
+    environment:
+      NODE_ENV: production
+      # Read at runtime by the server (Supabase server client + import webhook).
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+      N8N_IMPORT_WEBHOOK_URL: ${N8N_IMPORT_WEBHOOK_URL}
+    networks:
+      - nika-net
+
+networks:
+  nika-net:
+    name: nika-catalog-net
