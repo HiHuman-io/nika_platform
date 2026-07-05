@@ -1,69 +1,130 @@
-# Deploy — app.musichub.hihuman.io
+# Nika Catalog — VPS Deployment Runbook
 
-Careful, isolated deploy. Nothing here touches other apps on the VPS:
-- Unique container (`nika-catalog`) + network (`nika-catalog-net`).
-- Bound to `127.0.0.1:3400` only (not public); nginx fronts it.
-- A brand-new nginx vhost, symlinked (not copied).
+Deploy the app to **https://app.musichub.hihuman.io** on the Contabo VPS.
+
+| Fact | Value |
+|------|-------|
+| Domain | `app.musichub.hihuman.io` |
+| VPS IP | `81.17.96.61` |
+| Host port → container | `127.0.0.1:3400` → `3000` |
+| Container / network | `nika-catalog` / `nika-catalog-net` |
+| App dir on VPS | `/opt/nika-catalog` |
+| Repo | `git@github.com:HiHuman-io/nika_platform.git` (private) |
+
+### Safety (shared VPS — other apps live here: n8n, imob, klc, bluecrow, chatbots, vsm)
+- App is bound to **localhost only** (`127.0.0.1:3400`) — never publicly exposed; nginx fronts it.
+- Unique container + network names — no clashes.
+- A **new** nginx vhost, **symlinked** (not copied) — existing sites untouched.
 - `certbot certonly` only **issues** a cert — it does not rewrite other vhosts.
-
-**Facts:** domain `app.musichub.hihuman.io` · VPS `81.17.96.61` · host port `3400` → container `3000`.
-
-Prereqs on the VPS: Docker + Docker Compose, nginx, certbot (`python3-certbot-nginx`).
+- **NEVER run** `docker system prune -a` or `docker image prune -a` (would delete other apps' images). Only `docker image prune -f` (dangling) / `docker builder prune -f`.
 
 ---
 
-## 1. DNS (EuroDNS)
-In the `hihuman.io` zone, add an **A record**:
+## Step 1 — DNS record (EuroDNS)
 
-| Host | Type | Value |
-|------|------|-------|
-| `app.musichub` | A | `81.17.96.61` |
+You're in the EuroDNS **Domains** list showing `hihuman.io`.
 
-Wait for it to resolve before certbot:
+1. Click the domain **`hihuman.io`** (or the **pencil/edit** icon on its row).
+2. Open the **DNS** section (EuroDNS labels it **"DNS"** / **"Advanced DNS"** / **"DNS Zone / Records"** — look in the domain's left menu or tabs).
+3. Click **Add record** (or **"+ New record"**) and enter exactly:
+   - **Type:** `A`
+   - **Host / Name:** `app.musichub`   *(just this — EuroDNS appends `.hihuman.io`)*
+   - **IP address / Target / Points to:** `81.17.96.61`
+   - **TTL:** `300` (or leave default)
+4. **Save / Confirm**.
+
+Then verify it resolves (run on the VPS, may take 1–15 min):
 ```bash
 dig +short app.musichub.hihuman.io      # must print 81.17.96.61
 ```
+Do not run certbot (Step 5) until this prints the IP.
 
-## 2. Get the code + env on the VPS
+---
+
+## Step 2 — GitHub deploy key (VPS read access to the private repo)
+
+On the VPS:
 ```bash
-sudo mkdir -p /opt/nika-catalog && cd /opt/nika-catalog
-git clone git@github.com:HiHuman-io/nika_platform.git .   # or: git pull
+ssh-keygen -t ed25519 -C "vps-nika-deploy" -f ~/.ssh/nika_deploy -N ""
+cat ~/.ssh/nika_deploy.pub
+```
+Copy the printed key → **GitHub → repo `nika_platform` → Settings → Deploy keys → Add deploy key**
+(Title: `contabo-vps`; paste the key; **leave "Allow write access" UNCHECKED**; Add key).
+
+Set up an SSH alias so future `git pull` uses this key, and test:
+```bash
+printf '\nHost github-nika\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/nika_deploy\n  IdentitiesOnly yes\n' >> ~/.ssh/config
+ssh -T git@github-nika      # expect: "Hi HiHuman-io/nika_platform! You've successfully authenticated"
+```
+
+---
+
+## Step 3 — Clone + configure env
+
+```bash
+sudo mkdir -p /opt/nika-catalog && sudo chown $USER:$USER /opt/nika-catalog
+git clone git@github-nika:HiHuman-io/nika_platform.git /opt/nika-catalog
+cd /opt/nika-catalog
 cp .env.example .env
-nano .env    # fill NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, N8N_IMPORT_WEBHOOK_URL
+nano .env
 ```
+Fill in the three values (copy the Supabase ones from your **local** machine's `.env.local`):
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key>
+N8N_IMPORT_WEBHOOK_URL=https://n8n.hihuman.io/webhook/nika-import
+```
+Save (Ctrl+O, Enter) and exit (Ctrl+X).
 
-## 3. Build + start the container
-Disk is tight (~88%) — check first, and only prune *safe* things (never `docker system prune -a`, which could remove other apps' images):
+---
+
+## Step 4 — Build + run + verify (localhost)
+
 ```bash
-df -h /                      # confirm headroom
-ss -tlnp | grep 3400 || true # confirm 3400 is free
-docker compose up -d --build
-docker image prune -f        # reclaim dangling layers only (safe)
-```
-Verify the app is up on localhost:
-```bash
-curl -I http://127.0.0.1:3400   # expect HTTP/1.1 200 or 307
+cd /opt/nika-catalog
+docker compose up -d --build     # first build takes a few minutes
+docker image prune -f            # reclaim dangling layers only (safe)
+docker compose ps                # nika-catalog should be "running"
+curl -I http://127.0.0.1:3400    # expect HTTP/1.1 200 or 307
 docker logs --tail=50 nika-catalog
 ```
+If `curl` returns 200/307, the app is healthy. **Do not proceed to nginx if this fails** — check `docker logs` first.
 
-## 4. TLS certificate (issue only — doesn't touch other vhosts)
+---
+
+## Step 5 — TLS certificate (only after DNS resolves)
+
 ```bash
+dig +short app.musichub.hihuman.io          # confirm it prints 81.17.96.61 FIRST
 sudo certbot certonly --nginx -d app.musichub.hihuman.io
-# creates /etc/letsencrypt/live/app.musichub.hihuman.io/{fullchain,privkey}.pem
 ```
+This creates `/etc/letsencrypt/live/app.musichub.hihuman.io/{fullchain,privkey}.pem`.
 
-## 5. Enable the nginx vhost (symlink, not copy) + reload
+---
+
+## Step 6 — Enable the nginx vhost (symlink) + reload
+
 ```bash
 sudo ln -s /opt/nika-catalog/deploy/nginx/app.musichub.hihuman.io.conf \
            /etc/nginx/sites-enabled/app.musichub.hihuman.io.conf
-sudo nginx -t                 # MUST pass before reloading
-sudo systemctl reload nginx   # graceful — other sites unaffected
+sudo nginx -t                    # MUST say "syntax is ok" / "test is successful"
+sudo systemctl reload nginx      # graceful — other sites unaffected
 ```
-Then open **https://app.musichub.hihuman.io** and log in.
 
-## 6. Supabase auth
-Add the domain in **Supabase → Authentication → URL Configuration** (Site URL + Redirect URLs):
-`https://app.musichub.hihuman.io`
+---
+
+## Step 7 — Supabase auth URL
+
+In **Supabase → Authentication → URL Configuration**, add to Site URL / Redirect URLs:
+```
+https://app.musichub.hihuman.io
+```
+
+---
+
+## Step 8 — Final check
+
+Open **https://app.musichub.hihuman.io** → log in → confirm Catalog/Raw Entries/Import/Settings load, and test a manual file upload (the Manual Import n8n workflow must be **Active**).
 
 ---
 
@@ -71,16 +132,20 @@ Add the domain in **Supabase → Authentication → URL Configuration** (Site UR
 ```bash
 cd /opt/nika-catalog && git pull
 docker compose up -d --build && docker image prune -f
+# if the nginx vhost changed: sudo nginx -t && sudo systemctl reload nginx
 ```
-(Config changes to `next.config.ts` — e.g. the allowed origin — take effect on rebuild. The nginx vhost is a symlink into the repo, so `git pull` updates it; run `sudo nginx -t && sudo systemctl reload nginx` if it changed.)
+> `NEXT_PUBLIC_*` are baked into the client bundle at **build** time, so changing them needs `--build`.
 
-## Rollback / stop (safe, isolated)
+## Rollback / stop (isolated, safe)
 ```bash
-docker compose down                      # stops only this app
+docker compose down
 sudo rm /etc/nginx/sites-enabled/app.musichub.hihuman.io.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-## Notes
-- `NEXT_PUBLIC_*` are baked into the client bundle at **build** time, so a value change requires `--build`.
-- Cert auto-renews via certbot's systemd timer; the `.well-known/acme-challenge` location in the vhost keeps HTTP renewals working.
+## Troubleshooting
+- **`curl 127.0.0.1:3400` fails** → `docker logs nika-catalog`; check `.env` values are set.
+- **`nginx -t` fails on cert paths** → certbot (Step 5) didn't run or DNS wasn't resolving; re-run Step 5.
+- **Login/session issues** → confirm Step 7 (Supabase URL) and that you're on `https://`.
+- **Uploads rejected** → the domain must match `allowedOrigins` in `next.config.ts` (it does: `app.musichub.hihuman.io`) and n8n import workflow must be Active.
+- **Disk full mid-build** → `df -h /`; `docker image prune -f` and `docker builder prune -f` only. Never `-a`.
