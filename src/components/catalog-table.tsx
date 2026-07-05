@@ -82,6 +82,11 @@ function autoSizeWidth(key: string, label: string, rows: Row[]): number {
   return Math.min(440, Math.max(96, Math.round(maxChars * 7.2 + 30)));
 }
 
+/** Minimum width so the (uppercase) header label + filter icon always fit. */
+function headerMinWidth(label: string): number {
+  return Math.ceil(label.length * 8) + 52;
+}
+
 /** Build a UTF-8 CSV (Excel-friendly) from the given columns + rows and download it. */
 function downloadCsv(
   filename: string,
@@ -335,8 +340,12 @@ export function CatalogTable({
       id: s.key,
       accessorKey: s.key,
       header: s.label,
-      // Explicit size when given; otherwise fit the content so text isn't clipped.
-      size: s.size ?? autoSizeWidth(s.key, s.label, rows),
+      // Explicit size when given; otherwise fit the content so text isn't
+      // clipped. Never narrower than the header label + filter icon.
+      size: Math.max(
+        s.size ?? autoSizeWidth(s.key, s.label, rows),
+        headerMinWidth(s.label),
+      ),
       minSize: 64,
       meta: { variant: s.variant, label: s.label } satisfies ColumnMeta,
       cell: (info) => <CatalogCell value={info.getValue()} variant={s.variant} />,
