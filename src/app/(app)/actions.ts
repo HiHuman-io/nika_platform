@@ -114,6 +114,8 @@ export async function duplicateRows(
   if (error) return { error: error.message };
 
   // Drop identity/lifecycle fields so each copy is a fresh, editable line.
+  // ean (+ derived code) are cleared too — they're unique and belong to the
+  // specific release, so a duplicate needs its own barcode.
   const STRIP = [
     "id",
     "created_at",
@@ -122,6 +124,8 @@ export async function duplicateRows(
     "approved_by",
     "sent_at",
     "hermes_id",
+    "ean",
+    "code",
   ];
   const copies = (data ?? []).map((row) => {
     const copy: Record<string, unknown> = { ...row };
