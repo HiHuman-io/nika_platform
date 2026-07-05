@@ -11,10 +11,11 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { CheckCircle2, Download, EyeOff, ListFilter, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
 import { bulkUpdateStatus, updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
+import { ColumnFilter } from "./column-filter";
 import { type FieldDef, inferFields, useRowDialogs } from "./row-form";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -210,11 +211,39 @@ export function CatalogTable({
 
   // Live search + per-column filters narrow rows before the table sees them.
   const [query, setQuery] = React.useState("");
-  const [showFilters, setShowFilters] = React.useState(false);
-  const [colFilters, setColFilters] = React.useState<Record<string, string>>({});
+  // Excel-style: per column, the set of values to keep (empty = no filter).
+  const [colFilters, setColFilters] = React.useState<Record<string, string[]>>(
+    {},
+  );
+  const setColumnFilter = React.useCallback((key: string, vals: string[]) => {
+    setColFilters((prev) => {
+      const next = { ...prev };
+      if (vals.length) next[key] = vals;
+      else delete next[key];
+      return next;
+    });
+  }, []);
+
+  // Distinct, sorted values per column for the filter dropdowns.
+  const columnValues = React.useMemo(() => {
+    const sets: Record<string, Set<string>> = {};
+    for (const row of rows) {
+      for (const key of Object.keys(row)) {
+        (sets[key] ??= new Set<string>()).add(toText(row[key]));
+      }
+    }
+    const out: Record<string, string[]> = {};
+    for (const k in sets) {
+      out[k] = [...sets[k]].sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true }),
+      );
+    }
+    return out;
+  }, [rows]);
+
   const data = React.useMemo(() => {
     const q = query.trim().toLowerCase();
-    const active = Object.entries(colFilters).filter(([, v]) => v.trim() !== "");
+    const active = Object.entries(colFilters).filter(([, v]) => v.length > 0);
     if (!q && active.length === 0) return rows;
     return rows.filter((row) => {
       if (
@@ -223,12 +252,8 @@ export function CatalogTable({
       ) {
         return false;
       }
-      for (const [key, val] of active) {
-        if (
-          !toText(row[key]).toLowerCase().includes(val.trim().toLowerCase())
-        ) {
-          return false;
-        }
+      for (const [key, vals] of active) {
+        if (!vals.includes(toText(row[key]))) return false;
       }
       return true;
     });
@@ -513,16 +538,6 @@ export function CatalogTable({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            type="button"
-            variant={showFilters ? "default" : "outline"}
-            onClick={() => setShowFilters((s) => !s)}
-            aria-pressed={showFilters}
-          >
-            <ListFilter />
-            Filters
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="outline">
@@ -656,29 +671,41 @@ export function CatalogTable({
                           zIndex: pinned ? 30 : 20,
                         }}
                       >
-                        <span
-                          className={`block truncate ${
-                            isData ? "cursor-grab active:cursor-grabbing" : ""
-                          }`}
-                          draggable={isData}
-                          onDragStart={
-                            isData
-                              ? (e) =>
-                                  e.dataTransfer.setData(
-                                    "text/plain",
-                                    header.column.id,
-                                  )
-                              : undefined
-                          }
-                          title={isData ? "Drag to reorder" : undefined}
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext(),
-                              )}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <span
+                            className={`block flex-1 truncate ${
+                              isData ? "cursor-grab active:cursor-grabbing" : ""
+                            }`}
+                            draggable={isData}
+                            onDragStart={
+                              isData
+                                ? (e) =>
+                                    e.dataTransfer.setData(
+                                      "text/plain",
+                                      header.column.id,
+                                    )
+                                : undefined
+                            }
+                            title={isData ? "Drag to reorder" : undefined}
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                          </span>
+                          {isData ? (
+                            <ColumnFilter
+                              label={meta?.label ?? header.column.id}
+                              values={columnValues[header.column.id] ?? []}
+                              selected={colFilters[header.column.id] ?? []}
+                              onChange={(vals) =>
+                                setColumnFilter(header.column.id, vals)
+                              }
+                            />
+                          ) : null}
+                        </div>
                         {header.column.getCanResize() ? (
                           <span
                             onMouseDown={header.getResizeHandler()}
@@ -688,23 +715,6 @@ export function CatalogTable({
                                 ? "bg-accent"
                                 : "bg-transparent hover:bg-accent/40"
                             }`}
-                          />
-                        ) : null}
-                        {showFilters &&
-                        header.column.id !== "select" &&
-                        header.column.id !== "actions" ? (
-                          <input
-                            value={colFilters[header.column.id] ?? ""}
-                            onChange={(e) =>
-                              setColFilters((p) => ({
-                                ...p,
-                                [header.column.id]: e.target.value,
-                              }))
-                            }
-                            onClick={(e) => e.stopPropagation()}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            placeholder="Filter…"
-                            className="mt-1.5 block w-full rounded border border-border bg-background px-1.5 py-1 text-[11px] font-normal normal-case tracking-normal text-foreground outline-none focus:border-accent"
                           />
                         ) : null}
                       </th>
