@@ -90,6 +90,15 @@ export default function LoginPage() {
           >
             {pending ? "Signing in…" : "Sign in"}
           </button>
+
+          <div className="text-center">
+            <a
+              href="/auth/forgot"
+              className="text-xs text-muted transition-colors hover:text-foreground"
+            >
+              Forgot your password?
+            </a>
+          </div>
         </form>
 
         <div className="mt-8 flex flex-col items-center gap-1.5">
