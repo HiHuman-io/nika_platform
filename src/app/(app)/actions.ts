@@ -101,3 +101,39 @@ export async function bulkDelete(
   revalidatePath(TABLE_ROUTES[table]);
   return { error: null };
 }
+
+export async function duplicateRows(
+  table: string,
+  ids: (string | number)[],
+): Promise<ActionResult> {
+  if (!isAllowed(table)) return { error: `Table "${table}" is not editable.` };
+  if (ids.length === 0) return { error: null };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from(table).select("*").in("id", ids);
+  if (error) return { error: error.message };
+
+  // Drop identity/lifecycle fields so each copy is a fresh, editable line.
+  const STRIP = [
+    "id",
+    "created_at",
+    "updated_at",
+    "approved_at",
+    "approved_by",
+    "sent_at",
+    "hermes_id",
+  ];
+  const copies = (data ?? []).map((row) => {
+    const copy: Record<string, unknown> = { ...row };
+    for (const k of STRIP) delete copy[k];
+    if (table === "catalog_lines") copy.status = "in_progress";
+    return copy;
+  });
+  if (copies.length === 0) return { error: null };
+
+  const { error: insertError } = await supabase.from(table).insert(copies);
+  if (insertError) return { error: insertError.message };
+
+  revalidatePath(TABLE_ROUTES[table]);
+  return { error: null };
+}

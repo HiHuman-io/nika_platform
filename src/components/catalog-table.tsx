@@ -11,9 +11,9 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { CheckCircle2, Download, EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, Download, EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
-import { bulkDelete, bulkUpdateStatus, updateRow } from "@/app/(app)/actions";
+import { bulkDelete, bulkUpdateStatus, duplicateRows, updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import { ColumnFilter } from "./column-filter";
 import { type FieldDef, inferFields, useRowDialogs } from "./row-form";
@@ -502,6 +502,19 @@ export function CatalogTable({
     }
   };
 
+  const [duplicating, setDuplicating] = React.useState(false);
+  const onDuplicate = async () => {
+    const ids = table.getSelectedRowModel().rows.map((r) => r.id);
+    if (ids.length === 0) return;
+    setDuplicating(true);
+    const result = await duplicateRows(tableName, ids);
+    setDuplicating(false);
+    if (!result.error) {
+      setRowSelection({});
+      router.refresh();
+    }
+  };
+
   const hideableColumns = table
     .getAllLeafColumns()
     .filter((c) => c.getCanHide());
@@ -603,6 +616,26 @@ export function CatalogTable({
             </Button>
           ) : null}
 
+          {canAdd && showSelect ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={selectedCount === 0 || duplicating}
+              onClick={onDuplicate}
+            >
+              <Copy />
+              {duplicating ? "Duplicating…" : "Duplicate"}
+              {selectedCount > 0 ? ` (${selectedCount})` : ""}
+            </Button>
+          ) : null}
+
+          {canAdd ? (
+            <Button type="button" onClick={openAdd}>
+              <Plus />
+              {addLabel}
+            </Button>
+          ) : null}
+
           {bulkApprove ? (
             <Button
               type="button"
@@ -628,12 +661,6 @@ export function CatalogTable({
             </Button>
           ) : null}
 
-          {canAdd ? (
-            <Button type="button" onClick={openAdd}>
-              <Plus />
-              {addLabel}
-            </Button>
-          ) : null}
         </div>
       </div>
 

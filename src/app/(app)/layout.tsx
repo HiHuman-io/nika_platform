@@ -23,7 +23,7 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-full flex-1 flex-col">
       {/* Full-width brand bar across the entire top of the screen. */}
-      <header className="flex h-14 shrink-0 items-center justify-between px-6 [background:var(--header-gradient)] [box-shadow:inset_0_-1px_0_0_rgba(255,255,255,0.12)]">
+      <header className="flex h-14 shrink-0 items-center justify-between bg-accent px-6 [box-shadow:inset_0_-1px_0_0_rgba(255,255,255,0.15)]">
         <div className="flex items-center gap-2.5">
           <Image
             src="/nika-logo.jpg"
