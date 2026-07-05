@@ -770,7 +770,7 @@ export function CatalogTable({
                           zIndex: pinned ? 30 : 20,
                         }}
                       >
-                        <div className="flex items-center gap-1">
+                        <div className="flex h-6 items-center gap-1">
                           <span
                             className={`block flex-1 truncate ${
                               isData ? "cursor-grab active:cursor-grabbing" : ""
