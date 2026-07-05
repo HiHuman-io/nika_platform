@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 
@@ -9,43 +8,29 @@ const BUCKET = "imports";
 export type ImportResult = { error: string | null; warning?: string };
 
 /**
- * Handle a manual file import: store the file in Supabase Storage, record a
- * `manual_imports` row, then hand off to n8n (via a webhook) for parsing +
- * extraction. The file is passed to n8n as a short-lived signed URL so n8n
- * never needs storage credentials.
+ * Record a manual import whose file was already uploaded to Supabase Storage by
+ * the browser, then hand off to n8n via a signed URL. The file itself never
+ * crosses the server-action boundary (that path is flaky for multipart in
+ * dev/Turbopack), so we only take metadata here.
  */
-export async function createImport(formData: FormData): Promise<ImportResult> {
-  const file = formData.get("file");
-  const senderEmail =
-    (formData.get("sender_email") as string | null)?.trim() || null;
-  const context = (formData.get("context") as string | null)?.trim() || null;
-
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: "Please choose a file to upload." };
-  }
+export async function registerImport(input: {
+  fileName: string;
+  filePath: string;
+  mimeType: string | null;
+  senderEmail: string | null;
+  context: string | null;
+}): Promise<ImportResult> {
+  const { fileName, filePath, mimeType, senderEmail, context } = input;
+  if (!fileName || !filePath) return { error: "Missing file information." };
 
   const supabase = await createClient();
-
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `${randomUUID()}-${safeName}`;
-  const bytes = new Uint8Array(await file.arrayBuffer());
-
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, bytes, {
-      contentType: file.type || "application/octet-stream",
-      upsert: false,
-    });
-  if (uploadError) {
-    return { error: `Upload failed: ${uploadError.message}` };
-  }
 
   const { data: inserted, error: insertError } = await supabase
     .from("manual_imports")
     .insert({
-      file_name: file.name,
-      file_path: path,
-      mime_type: file.type || null,
+      file_name: fileName,
+      file_path: filePath,
+      mime_type: mimeType,
       sender_email: senderEmail,
       context,
       status: "pending",
@@ -59,7 +44,7 @@ export async function createImport(formData: FormData): Promise<ImportResult> {
   // Signed URL lets n8n fetch the file without any service credentials.
   const { data: signed } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(path, 60 * 60);
+    .createSignedUrl(filePath, 60 * 60);
 
   const webhookUrl = process.env.N8N_IMPORT_WEBHOOK_URL;
   if (!webhookUrl) {
@@ -77,8 +62,8 @@ export async function createImport(formData: FormData): Promise<ImportResult> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         import_id: inserted.id,
-        file_name: file.name,
-        mime_type: file.type || null,
+        file_name: fileName,
+        mime_type: mimeType,
         sender_email: senderEmail,
         context,
         file_url: signed?.signedUrl ?? null,
@@ -92,7 +77,6 @@ export async function createImport(formData: FormData): Promise<ImportResult> {
       };
     }
   } catch {
-    // Don't fail the upload if n8n is unreachable — the row stays "pending".
     revalidatePath("/import");
     return {
       error: null,

@@ -4,7 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 
-import { createImport } from "@/app/(app)/import/actions";
+import { registerImport } from "@/app/(app)/import/actions";
+import { createClient } from "@/utils/supabase/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -25,19 +26,55 @@ export function ImportDialog() {
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setPending(true);
-    setError(null);
-    const result = await createImport(new FormData(e.currentTarget));
-    setPending(false);
-    if (result.error) {
-      setError(result.error);
+    const fd = new FormData(e.currentTarget);
+    const file = fd.get("file");
+    const senderEmail =
+      ((fd.get("sender_email") as string) || "").trim() || null;
+    const context = ((fd.get("context") as string) || "").trim() || null;
+
+    if (!(file instanceof File) || file.size === 0) {
+      setError("Please choose a file to upload.");
       return;
     }
-    setOpen(false);
-    router.refresh();
-    if (result.warning) {
-      // Soft note: stored but processing didn't trigger.
-      window.alert(result.warning);
+
+    setPending(true);
+    setError(null);
+    try {
+      // Upload directly to Supabase Storage from the browser (RLS-gated),
+      // then hand only the metadata to the server action.
+      const supabase = createClient();
+      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+      const path = `${crypto.randomUUID()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("imports")
+        .upload(path, file, {
+          contentType: file.type || "application/octet-stream",
+          upsert: false,
+        });
+      if (uploadError) {
+        setPending(false);
+        setError(`Upload failed: ${uploadError.message}`);
+        return;
+      }
+
+      const result = await registerImport({
+        fileName: file.name,
+        filePath: path,
+        mimeType: file.type || null,
+        senderEmail,
+        context,
+      });
+      setPending(false);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setOpen(false);
+      router.refresh();
+      if (result.warning) window.alert(result.warning);
+    } catch (err) {
+      setPending(false);
+      setError(err instanceof Error ? err.message : "Upload failed.");
     }
   };
 
