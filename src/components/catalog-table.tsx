@@ -605,13 +605,13 @@ export function CatalogTable({
               <DropdownMenuLabel>Download CSV</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={onExportAll}>
-                Export all (filtered) — {data.length}
+                Export all (filtered) - {data.length}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={selectedCount === 0}
                 onSelect={onExportSelected}
               >
-                Export selected{selectedCount > 0 ? ` — ${selectedCount}` : ""}
+                Export selected{selectedCount > 0 ? ` - ${selectedCount}` : ""}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -901,13 +901,14 @@ export function CatalogTable({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Delete {selectedCount} {entityLabel}
-              {selectedCount === 1 ? "" : "s"}?
+              {`Delete ${selectedCount} ${entityLabel}${
+                selectedCount === 1 ? "" : "s"
+              }?`}
             </DialogTitle>
             <DialogDescription>
-              This permanently removes the selected {entityLabel}
-              {selectedCount === 1 ? "" : "s"} from Supabase. This action
-              can&apos;t be undone.
+              {`This permanently removes the selected ${entityLabel}${
+                selectedCount === 1 ? "" : "s"
+              }. This action can't be undone.`}
             </DialogDescription>
           </DialogHeader>
           {deleteError ? (

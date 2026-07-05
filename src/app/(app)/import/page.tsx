@@ -21,8 +21,7 @@ export default async function ImportPage() {
           </h1>
           <p className="mt-1.5 text-sm text-muted">
             Upload Excel/PDF files labels share directly (e.g. private links).
-            Each upload is stored and sent to n8n for extraction into the
-            catalog.
+            Each upload is stored and sent for extraction into the catalog.
           </p>
         </div>
         <ImportDialog />

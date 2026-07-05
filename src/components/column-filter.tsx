@@ -166,7 +166,7 @@ export function ColumnFilter({
                 ) : null}
                 {shown.length > CAP ? (
                   <p className="px-1 py-1 text-xs text-muted">
-                    +{shown.length - CAP} more — refine your search.
+                    +{shown.length - CAP} more - refine your search.
                   </p>
                 ) : null}
               </div>

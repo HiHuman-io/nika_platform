@@ -177,7 +177,7 @@ export function RowFormDialog({
           </DialogTitle>
           <DialogDescription>
             {mode === "add"
-              ? `Create a new ${entityLabel}. It will be saved to Supabase.`
+              ? `Create a new ${entityLabel}. It will be saved.`
               : `Update this ${entityLabel} and save your changes.`}
           </DialogDescription>
         </DialogHeader>
@@ -264,8 +264,8 @@ export function DeleteConfirmDialog({
         <DialogHeader>
           <DialogTitle>Delete {entityLabel}?</DialogTitle>
           <DialogDescription>
-            This permanently removes the {entityLabel} from Supabase. This action
-            can&apos;t be undone.
+            This permanently removes the {entityLabel}. This action can&apos;t be
+            undone.
           </DialogDescription>
         </DialogHeader>
         {error ? (

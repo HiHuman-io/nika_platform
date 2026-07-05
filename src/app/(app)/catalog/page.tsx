@@ -89,7 +89,7 @@ export default async function CatalogPage() {
           Catalog
         </h1>
         <p className="mt-1.5 text-sm text-muted">
-          Merged catalog lines — add, edit, filter and select rows to send.
+          Merged catalog lines - add, edit, filter and select rows to send.
         </p>
       </div>
 

@@ -52,7 +52,7 @@ export async function registerImport(input: {
     return {
       error: null,
       warning:
-        "Stored, but N8N_IMPORT_WEBHOOK_URL is not set — processing was not triggered.",
+        "Stored, but the processing service is not configured, so processing was not triggered.",
     };
   }
 
@@ -73,14 +73,15 @@ export async function registerImport(input: {
       revalidatePath("/import");
       return {
         error: null,
-        warning: `Stored, but n8n returned ${res.status}. It stays "pending" for retry.`,
+        warning: `Stored, but the processing service returned ${res.status}. It stays "pending" for retry.`,
       };
     }
   } catch {
     revalidatePath("/import");
     return {
       error: null,
-      warning: "Stored, but n8n was unreachable. It stays “pending” for retry.",
+      warning:
+        "Stored, but the processing service was unreachable. It stays \"pending\" for retry.",
     };
   }
 

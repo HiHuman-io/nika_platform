@@ -97,7 +97,7 @@ export function ImportDialog() {
             <DialogTitle>Import a file</DialogTitle>
             <DialogDescription>
               Upload an Excel or PDF a label shared (e.g. via a private link).
-              It&apos;s stored and sent to n8n for extraction into the catalog.
+              It&apos;s stored and sent for extraction into the catalog.
             </DialogDescription>
           </DialogHeader>
 
@@ -132,7 +132,7 @@ export function ImportDialog() {
                 id="import-context"
                 name="context"
                 rows={4}
-                placeholder="Anything useful for extraction — which label, what the file contains, special instructions…"
+                placeholder="Anything useful for extraction - which label, what the file contains, special instructions…"
                 className="flex w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/30"
               />
             </div>
