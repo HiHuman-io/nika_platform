@@ -463,11 +463,19 @@ export function CatalogTable({
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedCount = selectedRows.length;
-  // How many selected rows can still be approved (not already approved/sent).
+  // How many selected rows can still be approved (only open/in_progress ones;
+  // not already approved/sent, and never excluded).
   const approvableCount = bulkApprove
     ? selectedRows.filter((r) => {
         const s = r.original.status;
-        return s !== bulkApprove.status && s !== "sent";
+        return s !== bulkApprove.status && s !== "sent" && s !== "excluded";
+      }).length
+    : 0;
+  // How many selected rows can be sent to Hermes (reviewed lines only).
+  const sendableCount = selectionAction
+    ? selectedRows.filter((r) => {
+        const s = r.original.status;
+        return s === "approved" || s === "sent";
       }).length
     : 0;
   const [hermesMessage, setHermesMessage] = React.useState<string | null>(null);
@@ -475,7 +483,7 @@ export function CatalogTable({
   const onHermes = () => {
     if (!selectionAction) return;
     setHermesMessage(
-      `${selectionAction.pendingMessage} (${selectedCount} rows selected)`,
+      `${selectionAction.pendingMessage} (${sendableCount} rows selected)`,
     );
   };
 
@@ -667,13 +675,13 @@ export function CatalogTable({
           {selectionAction ? (
             <Button
               type="button"
-              disabled={selectedCount === 0}
+              disabled={sendableCount === 0}
               onClick={onHermes}
               className="border-0 bg-pink-600 text-white shadow-[0_0_16px_-2px_rgba(236,72,153,0.85)] hover:bg-pink-500 hover:shadow-[0_0_24px_0_rgba(236,72,153,1)]"
             >
               <Send />
               {selectionAction.label}
-              {selectedCount > 0 ? ` (${selectedCount})` : ""}
+              {sendableCount > 0 ? ` (${sendableCount})` : ""}
             </Button>
           ) : null}
 
