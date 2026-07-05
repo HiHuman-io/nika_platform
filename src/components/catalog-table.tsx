@@ -462,6 +462,7 @@ export function CatalogTable({
       }).length
     : 0;
   const [hermesMessage, setHermesMessage] = React.useState<string | null>(null);
+  const [actionError, setActionError] = React.useState<string | null>(null);
   const onHermes = () => {
     if (!selectionAction) return;
     setHermesMessage(
@@ -494,12 +495,15 @@ export function CatalogTable({
     const ids = table.getSelectedRowModel().rows.map((r) => r.id);
     if (ids.length === 0) return;
     setApproving(true);
+    setActionError(null);
     const result = await bulkUpdateStatus(tableName, ids, bulkApprove.status);
     setApproving(false);
-    if (!result.error) {
-      setRowSelection({});
-      router.refresh();
+    if (result.error) {
+      setActionError(result.error);
+      return;
     }
+    setRowSelection({});
+    router.refresh();
   };
 
   const [duplicating, setDuplicating] = React.useState(false);
@@ -507,12 +511,15 @@ export function CatalogTable({
     const ids = table.getSelectedRowModel().rows.map((r) => r.id);
     if (ids.length === 0) return;
     setDuplicating(true);
+    setActionError(null);
     const result = await duplicateRows(tableName, ids);
     setDuplicating(false);
-    if (!result.error) {
-      setRowSelection({});
-      router.refresh();
+    if (result.error) {
+      setActionError(result.error);
+      return;
     }
+    setRowSelection({});
+    router.refresh();
   };
 
   const hideableColumns = table
@@ -671,6 +678,19 @@ export function CatalogTable({
             type="button"
             onClick={() => setHermesMessage(null)}
             className="text-xs text-muted hover:text-foreground"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {actionError ? (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
+          <span>{actionError}</span>
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="text-xs opacity-70 hover:opacity-100"
           >
             Dismiss
           </button>
