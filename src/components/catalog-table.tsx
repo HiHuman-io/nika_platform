@@ -13,13 +13,21 @@ import {
 } from "@tanstack/react-table";
 import { CheckCircle2, Download, EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
-import { bulkUpdateStatus, updateRow } from "@/app/(app)/actions";
+import { bulkDelete, bulkUpdateStatus, updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import { ColumnFilter } from "./column-filter";
 import { type FieldDef, inferFields, useRowDialogs } from "./row-form";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -461,6 +469,25 @@ export function CatalogTable({
     );
   };
 
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  const onBulkDelete = async () => {
+    const ids = table.getSelectedRowModel().rows.map((r) => r.id);
+    if (ids.length === 0) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await bulkDelete(tableName, ids);
+    setDeleting(false);
+    if (result.error) {
+      setDeleteError(result.error);
+      return;
+    }
+    setRowSelection({});
+    setConfirmDelete(false);
+    router.refresh();
+  };
+
   const [approving, setApproving] = React.useState(false);
   const onApprove = async () => {
     if (!bulkApprove) return;
@@ -559,6 +586,22 @@ export function CatalogTable({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {canDelete && showSelect ? (
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={selectedCount === 0}
+              onClick={() => {
+                setDeleteError(null);
+                setConfirmDelete(true);
+              }}
+            >
+              <Trash2 />
+              Delete
+              {selectedCount > 0 ? ` (${selectedCount})` : ""}
+            </Button>
+          ) : null}
 
           {bulkApprove ? (
             <Button
@@ -792,6 +835,50 @@ export function CatalogTable({
       </p>
 
       {dialogs}
+
+      <Dialog
+        open={confirmDelete}
+        onOpenChange={(o) => {
+          if (!deleting) setConfirmDelete(o);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Delete {selectedCount} {entityLabel}
+              {selectedCount === 1 ? "" : "s"}?
+            </DialogTitle>
+            <DialogDescription>
+              This permanently removes the selected {entityLabel}
+              {selectedCount === 1 ? "" : "s"} from Supabase. This action
+              can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
+              {deleteError}
+            </p>
+          ) : null}
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={deleting}
+              onClick={() => setConfirmDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleting}
+              onClick={onBulkDelete}
+            >
+              {deleting ? "Deleting…" : `Delete ${selectedCount}`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

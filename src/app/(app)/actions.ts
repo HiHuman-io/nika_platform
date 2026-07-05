@@ -86,3 +86,18 @@ export async function deleteRow(
   revalidatePath(TABLE_ROUTES[table]);
   return { error: null };
 }
+
+export async function bulkDelete(
+  table: string,
+  ids: (string | number)[],
+): Promise<ActionResult> {
+  if (!isAllowed(table)) return { error: `Table "${table}" is not editable.` };
+  if (ids.length === 0) return { error: null };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from(table).delete().in("id", ids);
+  if (error) return { error: error.message };
+
+  revalidatePath(TABLE_ROUTES[table]);
+  return { error: null };
+}
