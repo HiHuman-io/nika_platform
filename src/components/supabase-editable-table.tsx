@@ -36,7 +36,11 @@ export async function SupabaseEditableTable({
   markIgnored?: boolean;
 }) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from(table).select("*").limit(limit);
+  const { data, error } = await supabase
+    .from(table)
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
 
   if (error) {
     return (

@@ -8,6 +8,7 @@ export default async function RawEntriesPage() {
   const { data, error } = await supabase
     .from("raw_entries")
     .select("*")
+    .order("created_at", { ascending: false })
     .limit(500);
 
   return (

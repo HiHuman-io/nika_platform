@@ -73,6 +73,7 @@ export default async function CatalogPage() {
   const { data, error } = await supabase
     .from("catalog_lines")
     .select("*")
+    .order("created_at", { ascending: false })
     .limit(500);
 
   // Derive the "sent to Hermes" indicator as a real field (server-side), so no
