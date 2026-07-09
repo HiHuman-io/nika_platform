@@ -1,0 +1,253 @@
+{
+  "name": "Hermes Send (Catalogue)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nika-hermes-send",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh-hermes-send",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 400],
+      "webhookId": "a7f1c0de-6b2e-4c11-9c8a-hermes-send01"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HERMES_BASE_URL }}/api/authenticate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"username\": \"{{ $env.HERMES_USERNAME }}\",\n  \"password\": \"{{ $env.HERMES_PASSWORD }}\"\n}",
+        "options": {}
+      },
+      "id": "http-hermes-auth",
+      "name": "Hermes Authenticate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 400],
+      "notes": "POST /api/authenticate {username,password} -> JWT. Creds come from n8n ENV (HERMES_USERNAME / HERMES_PASSWORD / HERMES_BASE_URL), never hard-coded here. TODO confirm the token field name in the response (assumed `token` downstream)."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Map each selected catalog_line (sent in the webhook body by the app) to the\n// Hermes item shape, and tag it add vs edit. Field mapping is the agreed one:\n//   title<-title, author<-artist, releaseDate<-release_date (YYYY-MM-DD),\n//   format<-format, ean<-ean, calculationGroup<-calculation_group,\n//   supplierCode<-supplier_code (populated by the extraction workflow).\n// A line that already has hermes_id is an EDIT; otherwise an ADD.\nconst lines = $('Webhook').first().json.body?.lines ?? [];\nconst out = [];\nfor (const l of lines) {\n  out.push({ json: {\n    _line_id: l.id,\n    _ean: l.ean ?? null,\n    _hermes_id: l.hermes_id ?? null,\n    _mode: l.hermes_id ? 'edit' : 'add',\n    item: {\n      title: l.title ?? null,\n      author: l.artist ?? null,\n      releaseDate: l.release_date ?? null,\n      format: l.format ?? null,\n      ean: l.ean ?? null,\n      calculationGroup: l.calculation_group ?? null,\n      supplierCode: l.supplier_code ?? null,\n    },\n  } });\n}\nreturn out;"
+      },
+      "id": "code-prepare-items",
+      "name": "Prepare Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "route-add-edit",
+              "leftValue": "={{ $json._mode }}",
+              "rightValue": "add",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-route-mode",
+      "name": "Route Add / Edit",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [660, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Collect all ADD lines into a single { items:[...] } batch for one POST,\n// keeping a parallel meta list so we can match the response back to line ids.\nconst all = $input.all();\nreturn [{ json: {\n  items: all.map(i => i.json.item),\n  meta: all.map(i => ({ line_id: i.json._line_id, ean: i.json._ean, hermes_id: i.json._hermes_id })),\n} }];"
+      },
+      "id": "code-aggregate-add",
+      "name": "Aggregate Add",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HERMES_BASE_URL }}/api/productsCatalogue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Hermes Authenticate').first().json.token }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json.items }) }}",
+        "options": {}
+      },
+      "id": "http-hermes-post-add",
+      "name": "Hermes POST (Add)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 280],
+      "notes": "POST /api/productsCatalogue {items:[...]}. 200 ok / 401 bad token / 422 processing error {msg,error}."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Match the Hermes response back to each line so we can store its hermes_id.\n// TODO the 200-response shape is not yet confirmed (Swagger shows a generic\n// map). Adjust `pickHermesId` once we see a real response. Until then we still\n// mark the line as sent; hermes_id enrichment is best-effort.\nconst resp = $json;\nconst meta = $('Aggregate Add').first().json.meta;\nfunction pickHermesId(r, m) {\n  // Common shapes to try: array aligned by index, or a map keyed by ean/item_code.\n  if (Array.isArray(r)) {\n    const hit = r.find(x => x && (x.ean === m.ean || x.item_code === m.ean));\n    return hit?.item_code ?? hit?.id ?? null;\n  }\n  if (r && typeof r === 'object') {\n    const v = r[m.ean];\n    if (v) return v.item_code ?? v.id ?? (typeof v === 'string' ? v : null);\n  }\n  return null;\n}\nreturn meta.map(m => ({ json: {\n  id: m.line_id,\n  hermes_id: pickHermesId(resp, m) ?? m.hermes_id ?? null,\n} }));"
+      },
+      "id": "code-map-add",
+      "name": "Map Add Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 280]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "catalog_lines",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "status", "fieldValue": "sent" },
+            { "fieldId": "sent_at", "fieldValue": "={{ $now.toISO() }}" },
+            { "fieldId": "hermes_id", "fieldValue": "={{ $json.hermes_id }}" }
+          ]
+        }
+      },
+      "id": "sb-mark-sent-add",
+      "name": "Mark Sent (Add)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 280],
+      "credentials": { "supabaseApi": { "id": "kkiHzEYLOtK6ZLEy", "name": "Nika" } }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Collect all EDIT lines into a single { items:[...] } batch.\nconst all = $input.all();\nreturn [{ json: {\n  items: all.map(i => i.json.item),\n  meta: all.map(i => ({ line_id: i.json._line_id, ean: i.json._ean, hermes_id: i.json._hermes_id })),\n} }];"
+      },
+      "id": "code-aggregate-edit",
+      "name": "Aggregate Edit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 520]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HERMES_BASE_URL }}/api/productsCatalogue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Hermes Authenticate').first().json.token }}" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ items: $json.items }) }}",
+        "options": {}
+      },
+      "id": "http-hermes-post-edit",
+      "name": "Hermes POST (Edit)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 520],
+      "notes": "TODO confirm with Hermes whether re-sending an already-submitted product via POST /api/productsCatalogue upserts it, or whether a distinct update endpoint exists. The documented API only exposes this POST, so the Edit branch reuses it for now."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Same best-effort id matching as the Add branch; on edit we keep the existing\n// hermes_id if the response doesn't return one.\nconst resp = $json;\nconst meta = $('Aggregate Edit').first().json.meta;\nfunction pickHermesId(r, m) {\n  if (Array.isArray(r)) {\n    const hit = r.find(x => x && (x.ean === m.ean || x.item_code === m.ean));\n    return hit?.item_code ?? hit?.id ?? null;\n  }\n  if (r && typeof r === 'object') {\n    const v = r[m.ean];\n    if (v) return v.item_code ?? v.id ?? (typeof v === 'string' ? v : null);\n  }\n  return null;\n}\nreturn meta.map(m => ({ json: {\n  id: m.line_id,\n  hermes_id: pickHermesId(resp, m) ?? m.hermes_id ?? null,\n} }));"
+      },
+      "id": "code-map-edit",
+      "name": "Map Edit Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, 520]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "catalog_lines",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "status", "fieldValue": "sent" },
+            { "fieldId": "sent_at", "fieldValue": "={{ $now.toISO() }}" },
+            { "fieldId": "hermes_id", "fieldValue": "={{ $json.hermes_id }}" }
+          ]
+        }
+      },
+      "id": "sb-mark-sent-edit",
+      "name": "Mark Sent (Edit)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1540, 520],
+      "credentials": { "supabaseApi": { "id": "kkiHzEYLOtK6ZLEy", "name": "Nika" } }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Hermes Authenticate", "type": "main", "index": 0 }]]
+    },
+    "Hermes Authenticate": {
+      "main": [[{ "node": "Prepare Items", "type": "main", "index": 0 }]]
+    },
+    "Prepare Items": {
+      "main": [[{ "node": "Route Add / Edit", "type": "main", "index": 0 }]]
+    },
+    "Route Add / Edit": {
+      "main": [
+        [{ "node": "Aggregate Add", "type": "main", "index": 0 }],
+        [{ "node": "Aggregate Edit", "type": "main", "index": 0 }]
+      ]
+    },
+    "Aggregate Add": {
+      "main": [[{ "node": "Hermes POST (Add)", "type": "main", "index": 0 }]]
+    },
+    "Hermes POST (Add)": {
+      "main": [[{ "node": "Map Add Response", "type": "main", "index": 0 }]]
+    },
+    "Map Add Response": {
+      "main": [[{ "node": "Mark Sent (Add)", "type": "main", "index": 0 }]]
+    },
+    "Aggregate Edit": {
+      "main": [[{ "node": "Hermes POST (Edit)", "type": "main", "index": 0 }]]
+    },
+    "Hermes POST (Edit)": {
+      "main": [[{ "node": "Map Edit Response", "type": "main", "index": 0 }]]
+    },
+    "Map Edit Response": {
+      "main": [[{ "node": "Mark Sent (Edit)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}

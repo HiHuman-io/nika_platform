@@ -13,7 +13,7 @@ import {
 } from "@tanstack/react-table";
 import { CheckCircle2, Copy, Download, EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
-import { bulkDelete, bulkUpdateStatus, duplicateRows, updateRow } from "@/app/(app)/actions";
+import { bulkDelete, bulkUpdateStatus, duplicateRows, sendToHermes, updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import { ColumnFilter } from "./column-filter";
 import { type FieldDef, inferFields, useRowDialogs } from "./row-form";
@@ -132,6 +132,12 @@ function CatalogCell({
   if (variant === "code") {
     return <span className="font-mono">{String(value)}</span>;
   }
+  if (variant === "date" && typeof value === "string") {
+    // Slovenian display format D.M.YYYY (e.g. 2026-07-04 -> 4.7.2026). Storage
+    // stays ISO — Hermes and date sorting rely on it — so this is display-only.
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+    if (m) return <>{`${Number(m[3])}.${Number(m[2])}.${m[1]}`}</>;
+  }
   return <>{String(value)}</>;
 }
 
@@ -159,7 +165,7 @@ export function CatalogTable({
   fields?: FieldDef[];
   idKey?: string;
   entityLabel?: string;
-  selectionAction?: { label: string; pendingMessage: string };
+  selectionAction?: { label: string };
   /** Bulk action that sets the given status on all selected rows. */
   bulkApprove?: { label: string; status: string };
   storageKey?: string;
@@ -480,11 +486,30 @@ export function CatalogTable({
     : 0;
   const [hermesMessage, setHermesMessage] = React.useState<string | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
-  const onHermes = () => {
+  const [sending, setSending] = React.useState(false);
+  const onHermes = async () => {
     if (!selectionAction) return;
-    setHermesMessage(
-      `${selectionAction.pendingMessage} (${sendableCount} rows selected)`,
-    );
+    // Only the reviewed lines (approved/sent) are eligible — same gate as the
+    // button's enabled state.
+    const ids = selectedRows
+      .filter((r) => {
+        const s = r.original.status;
+        return s === "approved" || s === "sent";
+      })
+      .map((r) => r.id);
+    if (ids.length === 0) return;
+    setSending(true);
+    setActionError(null);
+    setHermesMessage(null);
+    const result = await sendToHermes(ids);
+    setSending(false);
+    if (result.error) {
+      setActionError(result.error);
+      return;
+    }
+    setHermesMessage(`Sent ${ids.length} line(s) to Hermes.`);
+    setRowSelection({});
+    router.refresh();
   };
 
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -675,13 +700,13 @@ export function CatalogTable({
           {selectionAction ? (
             <Button
               type="button"
-              disabled={sendableCount === 0}
+              disabled={sendableCount === 0 || sending}
               onClick={onHermes}
               className="border-0 bg-pink-600 text-white shadow-[0_0_16px_-2px_rgba(236,72,153,0.85)] hover:bg-pink-500 hover:shadow-[0_0_24px_0_rgba(236,72,153,1)]"
             >
               <Send />
-              {selectionAction.label}
-              {sendableCount > 0 ? ` (${sendableCount})` : ""}
+              {sending ? "Sending…" : selectionAction.label}
+              {!sending && sendableCount > 0 ? ` (${sendableCount})` : ""}
             </Button>
           ) : null}
 

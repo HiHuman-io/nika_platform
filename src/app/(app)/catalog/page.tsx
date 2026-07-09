@@ -19,13 +19,13 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "code", label: "Code", variant: "code", size: 115 },
   { key: "catalogue_no", label: "Cat. no", size: 105 },
   { key: "release_date", label: "Release", variant: "date", size: 105 },
-  { key: "price_eur", label: "Price €", variant: "number", size: 85 },
-  { key: "currency", label: "Cur.", size: 60 },
+  { key: "price_eur", label: "Rock Bottom €", variant: "number", size: 115 },
+  { key: "currency", label: "Orig. cur.", size: 70 },
   { key: "price_original", label: "Orig. price", variant: "number", size: 95 },
-  { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95 },
-  { key: "cop", label: "COP", variant: "number", size: 75 },
-  { key: "ppd", label: "PPD", variant: "number", size: 75 },
-  { key: "our_price", label: "Our price", variant: "number", size: 95 },
+  { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95, hidden: true },
+  { key: "cop", label: "COP €", variant: "number", size: 80 },
+  { key: "ppd", label: "PPD €", variant: "number", size: 80 },
+  { key: "our_price", label: "Our price €", variant: "number", size: 100 },
   { key: "source_status", label: "Source status", size: 120 },
   { key: "stran", label: "Stran", size: 80 },
   { key: "ne", label: "Ne", size: 70 },
@@ -49,13 +49,13 @@ const CATALOG_FIELDS: FieldDef[] = [
   { key: "code", label: "Code", type: "text" },
   { key: "catalogue_no", label: "Catalogue no", type: "text" },
   { key: "release_date", label: "Release date", type: "date" },
-  { key: "price_eur", label: "Price (€)", type: "number" },
-  { key: "currency", label: "Currency", type: "text" },
+  { key: "price_eur", label: "Rock Bottom (€) — stored in price_eur", type: "number" },
+  { key: "currency", label: "Original currency", type: "text" },
   { key: "price_original", label: "Original price", type: "number" },
   { key: "price_secondary", label: "Price secondary", type: "number" },
-  { key: "cop", label: "COP", type: "number" },
-  { key: "ppd", label: "PPD", type: "number" },
-  { key: "our_price", label: "Our price", type: "number" },
+  { key: "cop", label: "COP (€)", type: "number" },
+  { key: "ppd", label: "PPD (€)", type: "number" },
+  { key: "our_price", label: "Our price (€)", type: "number" },
   { key: "source_status", label: "Source status", type: "text" },
   { key: "stran", label: "Stran", type: "text" },
   { key: "ne", label: "Ne", type: "text" },
@@ -107,10 +107,7 @@ export default async function CatalogPage() {
           fields={CATALOG_FIELDS}
           entityLabel="catalog line"
           bulkApprove={{ label: "Approve", status: "approved" }}
-          selectionAction={{
-            label: "Send to Hermes",
-            pendingMessage: "Hermes integration coming soon",
-          }}
+          selectionAction={{ label: "Send to Hermes" }}
         />
       )}
     </div>

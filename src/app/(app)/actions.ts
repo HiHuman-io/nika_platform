@@ -102,6 +102,54 @@ export async function bulkDelete(
   return { error: null };
 }
 
+/**
+ * Send the selected catalog lines to the client's Hermes system via the n8n
+ * webhook (which authenticates, POSTs to /api/productsCatalogue, and writes back
+ * hermes_id/sent_at/status="sent" per line). We re-read the rows server-side and
+ * only forward ones that are actually approved/sent — the client never dictates
+ * the payload, and Supabase RLS still applies.
+ */
+export async function sendToHermes(
+  ids: (string | number)[],
+): Promise<ActionResult> {
+  if (ids.length === 0) return { error: null };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("catalog_lines")
+    .select("*")
+    .in("id", ids)
+    .in("status", ["approved", "sent"]);
+  if (error) return { error: error.message };
+
+  const lines = data ?? [];
+  if (lines.length === 0)
+    return { error: "None of the selected lines are approved to send." };
+
+  const webhookUrl = process.env.N8N_HERMES_WEBHOOK_URL;
+  if (!webhookUrl)
+    return {
+      error:
+        "Hermes sending is not configured yet (N8N_HERMES_WEBHOOK_URL is unset).",
+    };
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ lines }),
+    });
+    if (!res.ok) {
+      return { error: `Hermes service returned ${res.status}.` };
+    }
+  } catch {
+    return { error: "Hermes service was unreachable." };
+  }
+
+  revalidatePath("/catalog");
+  return { error: null };
+}
+
 export async function duplicateRows(
   table: string,
   ids: (string | number)[],
