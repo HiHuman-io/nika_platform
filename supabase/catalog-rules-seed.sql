@@ -53,7 +53,7 @@ where not exists (select 1 from public.exclusions e where e.keyword = v.keyword)
 -- 5) Mandatory fields.
 insert into public.mandatory_fields (field_name)
 select v.field_name
-from (values ('artist'), ('title'), ('ean'), ('format'), ('release_date'), ('price_eur'), ('label')) as v(field_name)
+from (values ('artist'), ('title'), ('ean'), ('format'), ('release_date'), ('rock_bottom'), ('label')) as v(field_name)
 where not exists (select 1 from public.mandatory_fields m where m.field_name = v.field_name);
 
 -- 6) Per-label notes.

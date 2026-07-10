@@ -53,14 +53,20 @@ export function ColumnFilter({
       setOpen(false);
     };
     const close = () => setOpen(false);
+    // Close on scroll (the fixed position would otherwise go stale) — but NOT
+    // when the scroll happens inside the panel's own value list, otherwise
+    // scrolling the checklist would dismiss it.
+    const onScroll = (e: Event) => {
+      if (panelRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
     document.addEventListener("mousedown", onDown);
     window.addEventListener("resize", close);
-    // Close on scroll anywhere (position would otherwise go stale).
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       document.removeEventListener("mousedown", onDown);
       window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [open]);
 
