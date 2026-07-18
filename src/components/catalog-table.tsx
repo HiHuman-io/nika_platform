@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import {
   type ColumnDef as TSColumnDef,
   type ColumnSizingState,
+  type PaginationState,
   type RowSelectionState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { CheckCircle2, Copy, Download, EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, EyeOff, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2 } from "lucide-react";
 
 import { bulkDelete, bulkUpdateStatus, duplicateRows, sendToHermes, updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
@@ -221,6 +223,10 @@ export function CatalogTable({
             key: k,
             label: k.replace(/_/g, " "),
             variant: inferVariant(k, rows),
+            // Hidden by default: unspecced columns are bookkeeping fields
+            // (timestamps, jsonb blobs) that only bloat the render. Still
+            // available through the "Columns" menu.
+            hidden: true,
           });
         }
       }
@@ -285,6 +291,18 @@ export function CatalogTable({
   }, [allSpecs]);
 
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  // Render one page of rows at a time. With 500 rows x ~30 columns every
+  // selection click re-rendered thousands of cells, which felt frozen.
+  // Search + column filters still run over the FULL row set (see `data` below);
+  // only what reaches the DOM is paged.
+  const [pagination, setPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 100,
+  });
+  // Narrowing the result set should send you back to the first page.
+  React.useEffect(() => {
+    setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
+  }, [query, colFilters]);
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(defaultVisibility);
   const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({});
@@ -436,10 +454,21 @@ export function CatalogTable({
   const table = useReactTable({
     data,
     columns,
-    state: { rowSelection, columnVisibility, columnSizing, columnOrder },
+    state: {
+      rowSelection,
+      columnVisibility,
+      columnSizing,
+      columnOrder,
+      pagination,
+    },
     getRowId: (row) => String(row[idKey]),
     enableRowSelection: true,
     columnResizeMode: "onChange",
+    // Keep the current page across router.refresh() (approving on page 3
+    // shouldn't bounce you back to page 1); the effect above handles filters.
+    autoResetPageIndex: false,
+    onPaginationChange: setPagination,
+    getPaginationRowModel: getPaginationRowModel(),
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnSizingChange: setColumnSizing,
@@ -541,7 +570,9 @@ export function CatalogTable({
       setActionError(result.error);
       return;
     }
-    setRowSelection({});
+    // Keep the rows selected: approving is usually followed by "Send to Hermes",
+    // and re-picking the same lines is tedious. Selection is keyed by row id
+    // (getRowId), so it survives the refresh below.
     router.refresh();
   };
 
@@ -914,11 +945,69 @@ export function CatalogTable({
         </div>
       )}
 
-      <p className="px-1 text-xs text-muted">
-        {data.length} {data.length === 1 ? "entry" : "entries"}
-        {query ? ` matching "${query}"` : ""}
-        {selectedCount > 0 ? ` · ${selectedCount} selected` : ""}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-xs text-muted">
+        <p>
+          {data.length} {data.length === 1 ? "entry" : "entries"}
+          {query ? ` matching "${query}"` : ""}
+          {selectedCount > 0 ? ` · ${selectedCount} selected` : ""}
+        </p>
+
+        {data.length > pagination.pageSize || pagination.pageIndex > 0 ? (
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5">
+              <span>Rows</span>
+              <select
+                value={pagination.pageSize}
+                onChange={(e) =>
+                  setPagination({
+                    pageIndex: 0,
+                    pageSize: Number(e.target.value),
+                  })
+                }
+                className="rounded-md border border-border bg-surface px-1.5 py-1 text-xs text-foreground outline-none focus:border-accent"
+              >
+                {[50, 100, 200, 500].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <span>
+              Page {pagination.pageIndex + 1} of{" "}
+              {Math.max(1, table.getPageCount())}
+            </span>
+
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={!table.getCanPreviousPage()}
+                onClick={() => table.previousPage()}
+                aria-label="Previous page"
+                title="Previous page"
+              >
+                <ChevronLeft />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                disabled={!table.getCanNextPage()}
+                onClick={() => table.nextPage()}
+                aria-label="Next page"
+                title="Next page"
+              >
+                <ChevronRight />
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       {dialogs}
 
