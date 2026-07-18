@@ -469,33 +469,30 @@ export function CatalogTable({
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedCount = selectedRows.length;
-  // How many selected rows can still be approved (only open/in_progress ones;
-  // not already approved/sent, and never excluded).
+  // How many selected rows can still be approved (only open/in_progress ones,
+  // never excluded).
   const approvableCount = bulkApprove
     ? selectedRows.filter((r) => {
         const s = r.original.status;
-        return s !== bulkApprove.status && s !== "sent" && s !== "excluded";
+        return s !== bulkApprove.status && s !== "excluded";
       }).length
     : 0;
-  // How many selected rows can be sent to Hermes (reviewed lines only).
+  // Sendable = approved and not yet pushed to Hermes. `sent_at` is the only
+  // record of the push (status no longer carries a "sent" value).
   const sendableCount = selectionAction
-    ? selectedRows.filter((r) => {
-        const s = r.original.status;
-        return s === "approved" || s === "sent";
-      }).length
+    ? selectedRows.filter(
+        (r) => r.original.status === "approved" && !r.original.sent_at,
+      ).length
     : 0;
   const [hermesMessage, setHermesMessage] = React.useState<string | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [sending, setSending] = React.useState(false);
   const onHermes = async () => {
     if (!selectionAction) return;
-    // Only the reviewed lines (approved/sent) are eligible — same gate as the
+    // Only approved lines that haven't been sent yet — same gate as the
     // button's enabled state.
     const ids = selectedRows
-      .filter((r) => {
-        const s = r.original.status;
-        return s === "approved" || s === "sent";
-      })
+      .filter((r) => r.original.status === "approved" && !r.original.sent_at)
       .map((r) => r.id);
     if (ids.length === 0) return;
     setSending(true);

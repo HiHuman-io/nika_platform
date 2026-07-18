@@ -39,7 +39,9 @@ export async function SupabaseEditableTable({
   const { data, error } = await supabase
     .from(table)
     .select("*")
+    // `id` tiebreaker keeps the order stable across updates (see catalog page).
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit);
 
   if (error) {

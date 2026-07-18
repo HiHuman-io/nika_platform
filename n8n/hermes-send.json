@@ -103,7 +103,6 @@
         "dataToSend": "defineBelow",
         "fieldsUi": {
           "fieldValues": [
-            { "fieldId": "status", "fieldValue": "sent" },
             { "fieldId": "sent_at", "fieldValue": "={{ $now.toISO() }}" }
           ]
         }

@@ -67,7 +67,9 @@ const CATALOG_FIELDS: FieldDef[] = [
     key: "status",
     label: "Status",
     type: "select",
-    options: ["in_progress", "approved", "sent", "excluded"],
+    // No "sent" here — whether a line reached Hermes is shown by the derived
+    // "Hermes" column (driven by sent_at), not by the workflow status.
+    options: ["in_progress", "approved", "excluded"],
   },
 ];
 
@@ -76,14 +78,19 @@ export default async function CatalogPage() {
   const { data, error } = await supabase
     .from("catalog_lines")
     .select("*")
+    // created_at never changes, and `id` breaks ties deterministically. Without
+    // the tiebreaker Postgres may return rows sharing a created_at (a batch from
+    // one extraction) in a different order after any UPDATE, so lines jumped
+    // around when they were approved / edited / sent.
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(500);
 
   // Derive the "sent to Hermes" indicator as a real field (server-side), so no
   // function needs to cross into the client table component.
   const rows = (data ?? []).map((r) => ({
     ...r,
-    hermes_sent: r.sent_at || r.status === "sent" ? "sent" : "not_sent",
+    hermes_sent: r.sent_at ? "sent" : "not_sent",
   }));
 
   return (

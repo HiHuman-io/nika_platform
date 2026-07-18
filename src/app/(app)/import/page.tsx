@@ -9,7 +9,9 @@ export default async function ImportPage() {
   const { data, error } = await supabase
     .from("manual_imports")
     .select("*")
+    // `id` tiebreaker keeps the order stable across updates (see catalog page).
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(500);
 
   return (

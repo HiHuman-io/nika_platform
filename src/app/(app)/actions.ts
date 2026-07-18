@@ -105,9 +105,9 @@ export async function bulkDelete(
 /**
  * Send the selected catalog lines to the client's Hermes system via the n8n
  * webhook (which authenticates, POSTs to /api/productsCatalogue, and writes back
- * hermes_id/sent_at/status="sent" per line). We re-read the rows server-side and
- * only forward ones that are actually approved/sent — the client never dictates
- * the payload, and Supabase RLS still applies.
+ * sent_at per line). We re-read the rows server-side and only forward ones that
+ * are approved and not yet sent — the client never dictates the payload, and
+ * Supabase RLS still applies.
  */
 export async function sendToHermes(
   ids: (string | number)[],
@@ -119,7 +119,8 @@ export async function sendToHermes(
     .from("catalog_lines")
     .select("*")
     .in("id", ids)
-    .in("status", ["approved", "sent"]);
+    .eq("status", "approved")
+    .is("sent_at", null);
   if (error) return { error: error.message };
 
   const lines = data ?? [];
