@@ -77,14 +77,13 @@ export default async function CatalogPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("catalog_lines")
-    // Only the columns the table actually uses. `select("*")` also dragged in
-    // created_at/updated_at/extra(jsonb)/notes/thread_id/..., which the table
-    // then appended as extra columns — thousands of needless cells, including a
-    // JSON.stringify per row for `extra`.
+    // Every column except `extra` (jsonb): the table renders a JSON.stringify of
+    // it on every row, which is the one field that genuinely hurt. Everything
+    // else stays available so no column silently disappears from the view.
     // NB: keep this as ONE string literal — Supabase infers the row type from it,
     // and a concatenated string degrades to `string` and breaks that inference.
     // prettier-ignore
-    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, stran, ne, calculation_group, ruleset_version, missing_fields, confidence, sent_at")
+    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, stran, ne, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at")
     // created_at never changes, and `id` breaks ties deterministically. Without
     // the tiebreaker Postgres may return rows sharing a created_at (a batch from
     // one extraction) in a different order after any UPDATE, so lines jumped

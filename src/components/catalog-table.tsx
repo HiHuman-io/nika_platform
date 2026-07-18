@@ -223,11 +223,11 @@ export function CatalogTable({
             key: k,
             label: k.replace(/_/g, " "),
             variant: inferVariant(k, rows),
-            // Hidden by default: unspecced columns are bookkeeping fields
-            // (timestamps, jsonb blobs) that only bloat the render. Still
-            // available through the "Columns" menu.
-            hidden: true,
           });
+          // NB: these must stay VISIBLE. Callers like SupabaseEditableTable pass
+          // columns={[]} and rely entirely on this inference — hiding them here
+          // blanks out the Settings / Import / Raw Entries tables. Trim what a
+          // page fetches in its query instead.
         }
       }
     }
