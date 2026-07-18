@@ -1,0 +1,59 @@
+{
+  "name": "Hermes Test (auth + read-only GET)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger-hermes-test",
+      "name": "When clicking Test",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HERMES_BASE_URL }}/api/authenticate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"username\": \"{{ $env.HERMES_USERNAME }}\",\n  \"password\": \"{{ $env.HERMES_PASSWORD }}\"\n}",
+        "options": {}
+      },
+      "id": "hermes-auth",
+      "name": "Hermes Authenticate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "notes": "POST /api/authenticate with {username,password} from n8n ENV. Returns the JWT. LOOK at this node's output to confirm the token field name (assumed 'token' by the GET below). If the body field names differ (e.g. 'user' instead of 'username'), adjust jsonBody. This does NOT modify any catalog data."
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.HERMES_BASE_URL }}/api/productsCatalogue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Hermes Authenticate').item.json.access_token }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "hermes-get-catalogue",
+      "name": "Hermes GET Catalogue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "notes": "READ-ONLY GET /api/productsCatalogue (paginated). If the auth token comes back under a different key (e.g. access_token), change {{ $('Hermes Authenticate').item.json.token }} to match. Safe to run against production — it only reads."
+    }
+  ],
+  "connections": {
+    "When clicking Test": {
+      "main": [[{ "node": "Hermes Authenticate", "type": "main", "index": 0 }]]
+    },
+    "Hermes Authenticate": {
+      "main": [[{ "node": "Hermes GET Catalogue", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "pinData": {}
+}
