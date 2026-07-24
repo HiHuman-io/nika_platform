@@ -11,6 +11,8 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "artist", label: "Artist", size: 140 },
   { key: "title", label: "Title", size: 190 },
   { key: "status", label: "Status", variant: "status", size: 120 },
+  // Readable reason (pulled from the `extra` jsonb) — mainly for excluded lines.
+  { key: "exclusion_reason", label: "Exclusion reason", size: 200 },
   { key: "hermes_sent", label: "Hermes", variant: "status", size: 115 },
   { key: "format", label: "Format", size: 95 },
   { key: "unit", label: "Unit", variant: "number", size: 65 },
@@ -83,7 +85,7 @@ export default async function CatalogPage() {
     // NB: keep this as ONE string literal — Supabase infers the row type from it,
     // and a concatenated string degrades to `string` and breaks that inference.
     // prettier-ignore
-    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, stran, ne, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at")
+    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, stran, ne, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, extra")
     // created_at never changes, and `id` breaks ties deterministically. Without
     // the tiebreaker Postgres may return rows sharing a created_at (a batch from
     // one extraction) in a different order after any UPDATE, so lines jumped
@@ -92,12 +94,18 @@ export default async function CatalogPage() {
     .order("id", { ascending: false })
     .limit(500);
 
-  // Derive the "sent to Hermes" indicator as a real field (server-side), so no
-  // function needs to cross into the client table component.
-  const rows = (data ?? []).map((r) => ({
-    ...r,
-    hermes_sent: r.sent_at ? "sent" : "not_sent",
-  }));
+  // Derive display-only fields server-side so the client table stays dumb:
+  //  - hermes_sent: the "Hermes" badge (driven by sent_at)
+  //  - exclusion_reason: pulled out of the `extra` jsonb so the reason a line was
+  //    excluded is a plain, readable column (the raw `extra` blob stays too).
+  const rows = (data ?? []).map((r) => {
+    const extra = (r.extra ?? null) as { exclusion_reason?: string | null } | null;
+    return {
+      ...r,
+      hermes_sent: r.sent_at ? "sent" : "not_sent",
+      exclusion_reason: extra?.exclusion_reason ?? null,
+    };
+  });
 
   return (
     <div className="space-y-6">
