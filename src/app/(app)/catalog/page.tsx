@@ -135,6 +135,18 @@ export default async function CatalogPage() {
           entityLabel="catalog line"
           bulkApprove={{ label: "Approve", status: "approved" }}
           selectionAction={{ label: "Send to Hermes" }}
+          // CSV export excludes all price columns — only these, in this order.
+          exportKeys={[
+            "artist",
+            "title",
+            "format",
+            "unit",
+            "label",
+            "ean",
+            "code",
+            "genre",
+            "release_date",
+          ]}
         />
       )}
     </div>

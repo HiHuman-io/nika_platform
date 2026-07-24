@@ -160,6 +160,7 @@ export function CatalogTable({
   addLabel = "Add row",
   searchPlaceholder = "Search catalog…",
   pinColumns = ["artist", "title"],
+  exportKeys,
 }: {
   table: string;
   rows: Row[];
@@ -178,6 +179,12 @@ export function CatalogTable({
   addLabel?: string;
   searchPlaceholder?: string;
   pinColumns?: string[];
+  /**
+   * Fixed allow-list of column keys (in order) to include in the CSV export,
+   * regardless of what's visible on screen. When omitted, export mirrors the
+   * visible columns.
+   */
+  exportKeys?: string[];
 }) {
   const router = useRouter();
   // Explicit fields when provided; otherwise infer them from the data so any
@@ -596,16 +603,23 @@ export function CatalogTable({
     .getAllLeafColumns()
     .filter((c) => c.getCanHide());
 
-  // Export honours current column visibility + order (so hidden columns,
-  // e.g. a future Genre, are excluded from the file).
-  const exportColumns = () =>
-    table
+  // Export: when the caller pins an explicit `exportKeys` allow-list, use it
+  // verbatim (order + only those columns) no matter what's visible. Otherwise
+  // mirror the visible columns + order (hidden columns stay out of the file).
+  const exportColumns = () => {
+    const labelFor = (key: string) =>
+      (allSpecs.find((s) => s.key === key)?.label ?? key);
+    if (exportKeys) {
+      return exportKeys.map((key) => ({ key, label: labelFor(key) }));
+    }
+    return table
       .getVisibleLeafColumns()
       .filter((c) => c.id !== "select" && c.id !== "actions")
       .map((c) => ({
         key: c.id,
         label: (c.columnDef.meta as ColumnMeta | undefined)?.label ?? c.id,
       }));
+  };
   const onExportAll = () => downloadCsv(`${tableName}.csv`, exportColumns(), data);
   const onExportSelected = () =>
     downloadCsv(
