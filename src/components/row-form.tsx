@@ -39,6 +39,8 @@ export type FieldDef = {
   options?: string[];
   required?: boolean;
   placeholder?: string;
+  /** Prefilled when the value is empty (e.g. supplier_code defaults to "149"). */
+  default?: string;
 };
 
 const SYSTEM_KEYS = new Set(["id", "created_at", "updated_at", "inserted_at"]);
@@ -76,7 +78,7 @@ function initialValues(fields: FieldDef[], row?: Row | null): Record<string, str
   for (const f of fields) {
     const v = row?.[f.key];
     if (v === null || v === undefined) {
-      out[f.key] = f.type === "boolean" ? "false" : "";
+      out[f.key] = f.default ?? (f.type === "boolean" ? "false" : "");
     } else if (f.type === "date" && typeof v === "string") {
       out[f.key] = v.slice(0, 10);
     } else if (typeof v === "object") {

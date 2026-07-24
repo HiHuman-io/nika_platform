@@ -36,7 +36,8 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95, hidden: true },
   { key: "stran", label: "Stran", size: 80 },
   { key: "ne", label: "Ne", size: 70 },
-  { key: "calculation_group", label: "Calc group", size: 130 },
+  { key: "calculation_group", label: "Calculation group", size: 130 },
+  { key: "supplier_code", label: "Supplier code", size: 110 },
   { key: "id", label: "ID", size: 80, hidden: true },
   { key: "ruleset_version", label: "Ruleset version", size: 120, hidden: true },
   { key: "missing_fields", label: "Missing fields", size: 150, hidden: true },
@@ -65,6 +66,8 @@ const CATALOG_FIELDS: FieldDef[] = [
   { key: "stran", label: "Stran", type: "text" },
   { key: "ne", label: "Ne", type: "text" },
   { key: "calculation_group", label: "Calculation group", type: "text" },
+  // Defaults to 149 (Warner) on new/empty rows, per the client.
+  { key: "supplier_code", label: "Supplier code", type: "text", default: "149" },
   {
     key: "status",
     label: "Status",
