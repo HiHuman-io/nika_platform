@@ -113,6 +113,35 @@ function downloadCsv(
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Build an .xlsx from the given columns + rows and download it. Every cell is
+ * written as TEXT so identifiers like EAN keep their leading zeros (Excel would
+ * otherwise coerce "011661750128" to a number and drop the leading 0).
+ * SheetJS is imported dynamically so it stays out of the main bundle.
+ */
+async function downloadXlsx(
+  filename: string,
+  columns: { key: string; label: string }[],
+  rows: Row[],
+) {
+  const XLSX = await import("xlsx");
+  const header = columns.map((c) => c.label);
+  const body = rows.map((r) => columns.map((c) => toText(r[c.key])));
+  const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
+  // Force text type on every populated cell (string values already infer 's',
+  // but be explicit so numeric-looking codes are never reinterpreted).
+  const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (cell) cell.t = "s";
+    }
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Export");
+  XLSX.writeFile(wb, filename);
+}
+
 function CatalogCell({
   value,
   variant,
@@ -161,6 +190,7 @@ export function CatalogTable({
   searchPlaceholder = "Search catalog…",
   pinColumns = ["artist", "title"],
   exportKeys,
+  exportFormat = "csv",
 }: {
   table: string;
   rows: Row[];
@@ -185,6 +215,8 @@ export function CatalogTable({
    * visible columns.
    */
   exportKeys?: string[];
+  /** File format for the Export buttons. Defaults to CSV. */
+  exportFormat?: "csv" | "xlsx";
 }) {
   const router = useRouter();
   // Explicit fields when provided; otherwise infer them from the data so any
@@ -620,13 +652,17 @@ export function CatalogTable({
         label: (c.columnDef.meta as ColumnMeta | undefined)?.label ?? c.id,
       }));
   };
-  const onExportAll = () => downloadCsv(`${tableName}.csv`, exportColumns(), data);
+  const exportFile = (suffix: string, exportRows: Row[]) => {
+    const cols = exportColumns();
+    if (exportFormat === "xlsx") {
+      void downloadXlsx(`${tableName}${suffix}.xlsx`, cols, exportRows);
+    } else {
+      downloadCsv(`${tableName}${suffix}.csv`, cols, exportRows);
+    }
+  };
+  const onExportAll = () => exportFile("", data);
   const onExportSelected = () =>
-    downloadCsv(
-      `${tableName}-selected.csv`,
-      exportColumns(),
-      table.getSelectedRowModel().rows.map((r) => r.original),
-    );
+    exportFile("-selected", table.getSelectedRowModel().rows.map((r) => r.original));
 
   return (
     <div className="space-y-3">

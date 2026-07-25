@@ -34,8 +34,6 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "currency", label: "Orig. cur.", size: 70 },
   { key: "price_original", label: "Orig. price", size: 95 },
   { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95, hidden: true },
-  { key: "stran", label: "Stran", size: 80 },
-  { key: "ne", label: "Ne", size: 70 },
   { key: "calculation_group", label: "Calculation group", size: 130 },
   { key: "supplier_code", label: "Supplier code", size: 110 },
   { key: "id", label: "ID", size: 80, hidden: true },
@@ -63,8 +61,6 @@ const CATALOG_FIELDS: FieldDef[] = [
   { key: "ppd", label: "PPD (€) — merged, e.g. 30,5/24,25", type: "text" },
   { key: "our_price", label: "Our price (€)", type: "number" },
   { key: "source_status", label: "Source status", type: "text" },
-  { key: "stran", label: "Stran", type: "text" },
-  { key: "ne", label: "Ne", type: "text" },
   { key: "calculation_group", label: "Calculation group", type: "text" },
   // Defaults to 149 (Warner) on new/empty rows, per the client.
   { key: "supplier_code", label: "Supplier code", type: "text", default: "149" },
@@ -88,7 +84,7 @@ export default async function CatalogPage() {
     // NB: keep this as ONE string literal — Supabase infers the row type from it,
     // and a concatenated string degrades to `string` and breaks that inference.
     // prettier-ignore
-    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, stran, ne, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, extra")
+    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, extra")
     // created_at never changes, and `id` breaks ties deterministically. Without
     // the tiebreaker Postgres may return rows sharing a created_at (a batch from
     // one extraction) in a different order after any UPDATE, so lines jumped
@@ -135,7 +131,9 @@ export default async function CatalogPage() {
           entityLabel="catalog line"
           bulkApprove={{ label: "Approve", status: "approved" }}
           selectionAction={{ label: "Send to Hermes" }}
-          // CSV export excludes all price columns — only these, in this order.
+          // Export to xlsx (keeps EAN leading zeros) with no price columns —
+          // only these keys, in this order.
+          exportFormat="xlsx"
           exportKeys={[
             "artist",
             "title",
