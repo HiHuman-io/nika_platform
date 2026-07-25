@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { CatalogTable, type CatalogColumnSpec } from "@/components/catalog-table";
 import { type FieldDef } from "@/components/row-form";
+import { Tabs } from "@/components/tabs";
 
 export const metadata = { title: "Catalog · Nika" };
 
@@ -36,6 +37,7 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95, hidden: true },
   { key: "calculation_group", label: "Calculation group", size: 130 },
   { key: "supplier_code", label: "Supplier code", size: 110 },
+  { key: "catalog", label: "Catalog", size: 90, hidden: true },
   { key: "id", label: "ID", size: 80, hidden: true },
   { key: "ruleset_version", label: "Ruleset version", size: 120, hidden: true },
   { key: "missing_fields", label: "Missing fields", size: 150, hidden: true },
@@ -84,7 +86,7 @@ export default async function CatalogPage() {
     // NB: keep this as ONE string literal — Supabase infers the row type from it,
     // and a concatenated string degrades to `string` and breaks that inference.
     // prettier-ignore
-    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, extra")
+    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, catalog, extra")
     // created_at never changes, and `id` breaks ties deterministically. Without
     // the tiebreaker Postgres may return rows sharing a created_at (a batch from
     // one extraction) in a different order after any UPDATE, so lines jumped
@@ -106,6 +108,41 @@ export default async function CatalogPage() {
     };
   });
 
+  // Two catalogs share one table via the `catalog` column: 'other' for Matrix
+  // Music / I-DI music / Pias Recordings, 'main' for the rest.
+  const mainRows = rows.filter((r) => r.catalog !== "other");
+  const otherRows = rows.filter((r) => r.catalog === "other");
+
+  const EXPORT_KEYS = [
+    "artist", "title", "format", "unit", "label", "ean", "code", "genre",
+    "release_date",
+  ];
+  // Same table for both tabs; only the rows and the new-row catalog default
+  // differ. `catalog` is an editable select, so a line can be moved between them.
+  const renderTable = (catalogRows: typeof rows, catalog: "main" | "other") => (
+    <CatalogTable
+      table="catalog_lines"
+      rows={catalogRows}
+      columns={CATALOG_COLUMNS}
+      fields={[
+        ...CATALOG_FIELDS,
+        {
+          key: "catalog",
+          label: "Catalog",
+          type: "select",
+          options: ["main", "other"],
+          default: catalog,
+        },
+      ]}
+      entityLabel="catalog line"
+      storageKey={`catalog-${catalog}`}
+      bulkApprove={{ label: "Approve", status: "approved" }}
+      selectionAction={{ label: "Send to Hermes" }}
+      exportFormat="xlsx"
+      exportKeys={EXPORT_KEYS}
+    />
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -123,29 +160,15 @@ export default async function CatalogPage() {
           <p className="mt-0.5 text-red-700/80">{error.message}</p>
         </div>
       ) : (
-        <CatalogTable
-          table="catalog_lines"
-          rows={rows}
-          columns={CATALOG_COLUMNS}
-          fields={CATALOG_FIELDS}
-          entityLabel="catalog line"
-          bulkApprove={{ label: "Approve", status: "approved" }}
-          selectionAction={{ label: "Send to Hermes" }}
-          // Export to xlsx (keeps EAN leading zeros) with no price columns —
-          // only these keys, in this order.
-          exportFormat="xlsx"
-          exportKeys={[
-            "artist",
-            "title",
-            "format",
-            "unit",
-            "label",
-            "ean",
-            "code",
-            "genre",
-            "release_date",
+        <Tabs
+          tabs={[
+            { value: "main", label: `Main Catalog (${mainRows.length})` },
+            { value: "other", label: `Other Catalog (${otherRows.length})` },
           ]}
-        />
+        >
+          {renderTable(mainRows, "main")}
+          {renderTable(otherRows, "other")}
+        </Tabs>
       )}
     </div>
   );
