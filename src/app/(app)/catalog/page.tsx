@@ -39,6 +39,9 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "price_original", label: "Orig. price", size: 95 },
   { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95, hidden: true },
   { key: "catalog", label: "Catalog", size: 90, hidden: true },
+  { key: "approved_by", label: "Approved by", size: 150, hidden: true },
+  { key: "notes", label: "Notes", size: 200, hidden: true },
+  { key: "extra", label: "Extra", size: 220, hidden: true },
   // Hidden, but declared so the xlsx export gets a clean "Hermes ID" header.
   { key: "hermes_id", label: "Hermes ID", size: 130, hidden: true },
   { key: "id", label: "ID", size: 80, hidden: true },
