@@ -8,36 +8,39 @@ export const metadata = { title: "Catalog · Nika" };
 // Display set (full set of columns). `status` drives the coloured badge;
 // source_status is a plain data field. id/ruleset_version/missing_fields/
 // confidence are present but hidden by default — toggle them via "Columns".
+// Column order requested by the client (2026-07). Everything after `our_price`
+// is "the rest, left as it was".
 const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "artist", label: "Artist", size: 140 },
   { key: "title", label: "Title", size: 190 },
   { key: "status", label: "Status", variant: "status", size: 120 },
-  // Readable reason (pulled from the `extra` jsonb) — mainly for excluded lines.
-  { key: "exclusion_reason", label: "Exclusion reason", size: 200 },
   { key: "hermes_sent", label: "Hermes", variant: "status", size: 115 },
-  { key: "format", label: "Format", size: 95 },
   { key: "unit", label: "Unit", variant: "number", size: 65 },
-  { key: "label", label: "Label", size: 120 },
+  { key: "format", label: "Format", size: 95 },
   { key: "ean", label: "EAN", variant: "code", size: 125 },
+  { key: "label", label: "Label", size: 120 },
   { key: "code", label: "Code", variant: "code", size: 115 },
   { key: "catalogue_no", label: "Cat. no", size: 105 },
-  { key: "genre", label: "Genre", size: 110 },
   { key: "release_date", label: "Release", variant: "date", size: 105 },
-  // Price block order per client: Rock Bottom -> COP -> PPD -> Our price.
+  // Readable reason (pulled from the `extra` jsonb) — mainly for excluded lines.
+  { key: "exclusion_reason", label: "Exclusion reason", size: 200 },
+  { key: "calculation_group", label: "Calculation group", size: 130 },
+  { key: "supplier_code", label: "Supplier code", size: 110 },
+  // Price block: Rock Bottom -> COP -> PPD -> Our price.
   { key: "rock_bottom", label: "Rock Bottom €", variant: "number", size: 115 },
   { key: "cop", label: "COP €", variant: "number", size: 80 },
-  // ppd holds a merged "PPD_EUR/RockBottom" string (e.g. "30,5/24,25") — text, not number.
+  // ppd holds a merged "PPD_EUR/RockBottom" string (e.g. "30,5/24,25") — text.
   { key: "ppd", label: "PPD €", size: 105 },
   { key: "our_price", label: "Our price €", variant: "number", size: 100 },
+  // The rest, unchanged.
+  { key: "genre", label: "Genre", size: 110 },
   { key: "source_status", label: "Source status", size: 120 },
-  // Original price/currency sit to the RIGHT of source status (only filled when
-  // the email had no euro prices). price_original is text.
   { key: "currency", label: "Orig. cur.", size: 70 },
   { key: "price_original", label: "Orig. price", size: 95 },
   { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95, hidden: true },
-  { key: "calculation_group", label: "Calculation group", size: 130 },
-  { key: "supplier_code", label: "Supplier code", size: 110 },
   { key: "catalog", label: "Catalog", size: 90, hidden: true },
+  // Hidden, but declared so the xlsx export gets a clean "Hermes ID" header.
+  { key: "hermes_id", label: "Hermes ID", size: 130, hidden: true },
   { key: "id", label: "ID", size: 80, hidden: true },
   { key: "ruleset_version", label: "Ruleset version", size: 120, hidden: true },
   { key: "missing_fields", label: "Missing fields", size: 150, hidden: true },
@@ -113,9 +116,10 @@ export default async function CatalogPage() {
   const mainRows = rows.filter((r) => r.catalog !== "other");
   const otherRows = rows.filter((r) => r.catalog === "other");
 
+  // Exact columns + order for the xlsx export (client 2026-07) — nothing else.
   const EXPORT_KEYS = [
-    "artist", "title", "format", "unit", "label", "ean", "code", "genre",
-    "release_date",
+    "artist", "title", "unit", "format", "ean", "label", "code", "catalogue_no",
+    "release_date", "our_price", "cop", "ppd", "hermes_id",
   ];
   // Same table for both tabs; only the rows and the new-row catalog default
   // differ. `catalog` is an editable select, so a line can be moved between them.
@@ -135,7 +139,7 @@ export default async function CatalogPage() {
         },
       ]}
       entityLabel="catalog line"
-      storageKey={`catalog-${catalog}`}
+      storageKey={`catalog-${catalog}-v2`}
       bulkApprove={{ label: "Approve", status: "approved" }}
       selectionAction={{ label: "Send to Hermes" }}
       exportFormat="xlsx"
