@@ -157,7 +157,7 @@
       "position": [2176, 592]
     },
     {
-      "parameters": { "model": "gpt-5-mini-nika", "options": {} },
+      "parameters": { "model": "gpt-4o", "options": {} },
       "id": "azure-chat-man-01",
       "name": "Azure OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
