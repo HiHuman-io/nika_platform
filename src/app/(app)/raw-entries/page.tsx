@@ -13,6 +13,15 @@ export default async function RawEntriesPage() {
     .order("id", { ascending: false })
     .limit(500);
 
+  // The extraction completeness check lives inside the `extracted` jsonb (so a
+  // missing DB column can never fail the n8n insert — see Build Raw Entry1). Hoist
+  // it to a top-level field here so it shows as its own alarm column: non-null means
+  // the AI returned fewer items than the source printed.
+  const rows = (data ?? []).map((r) => {
+    const extracted = r.extracted as { extraction_audit?: string | null } | null;
+    return { ...r, extraction_audit: extracted?.extraction_audit ?? null };
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -33,7 +42,7 @@ export default async function RawEntriesPage() {
       ) : (
         <CatalogTable
           table="raw_entries"
-          rows={data ?? []}
+          rows={rows}
           columns={[]}
           fields={[]}
           entityLabel="raw entry"
@@ -43,7 +52,7 @@ export default async function RawEntriesPage() {
           canDelete={false}
           markIgnored
           searchPlaceholder="Search raw entries…"
-          pinColumns={[]}
+          pinColumns={["extraction_audit"]}
         />
       )}
     </div>
