@@ -17,6 +17,12 @@ import { CheckCircle2, ChevronLeft, ChevronRight, Copy, Download, EyeOff, Pencil
 
 import { bulkDelete, bulkUpdateStatus, duplicateRows, sendToHermes, updateRow } from "@/app/(app)/actions";
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
+import {
+  EXPORT_PRESETS,
+  formatDmy,
+  type ExportColumnSpec,
+  type ExportPreset,
+} from "./catalog-export";
 import { ColumnFilter } from "./column-filter";
 import { type FieldDef, inferFields, useRowDialogs } from "./row-form";
 import { Button } from "./ui/button";
@@ -89,18 +95,23 @@ function headerMinWidth(label: string): number {
   return Math.ceil(label.length * 8) + 52;
 }
 
+/** Read a column's value out of a row: derived when the spec says so, raw otherwise. */
+function exportValue(column: ExportColumnSpec, row: Row): unknown {
+  return column.value ? column.value(row) : row[column.key];
+}
+
 /** Build a UTF-8 CSV (Excel-friendly) from the given columns + rows and download it. */
 function downloadCsv(
   filename: string,
-  columns: { key: string; label: string }[],
+  columns: ExportColumnSpec[],
   rows: Row[],
 ) {
   const esc = (val: unknown) => {
     const t = toText(val);
     return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
   };
-  const header = columns.map((c) => esc(c.label)).join(",");
-  const body = rows.map((r) => columns.map((c) => esc(r[c.key])).join(","));
+  const header = columns.map((c) => esc(c.label ?? c.key)).join(",");
+  const body = rows.map((r) => columns.map((c) => esc(exportValue(c, r))).join(","));
   const csv = String.fromCharCode(0xfeff) + [header, ...body].join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -114,29 +125,62 @@ function downloadCsv(
 }
 
 /**
- * Build an .xlsx from the given columns + rows and download it. Every cell is
- * written as TEXT so identifiers like EAN keep their leading zeros (Excel would
- * otherwise coerce "011661750128" to a number and drop the leading 0).
- * SheetJS is imported dynamically so it stays out of the main bundle.
+ * Build an .xlsx from the given columns + rows and download it.
+ *
+ * Cells default to TEXT so identifiers like EAN keep their leading zeros (Excel
+ * would otherwise coerce "011661750128" to a number and drop the 0). Columns
+ * that opt into `type: "number"` are written as real numeric cells instead, so
+ * Excel can compute on them and renders them in the user's locale; columns with
+ * a `formula` become live formula cells with no cached value, which Excel
+ * evaluates on open. SheetJS is imported dynamically to stay out of the bundle.
  */
 async function downloadXlsx(
   filename: string,
-  columns: { key: string; label: string }[],
+  columns: ExportColumnSpec[],
   rows: Row[],
 ) {
   const XLSX = await import("xlsx");
-  const header = columns.map((c) => c.label);
-  const body = rows.map((r) => columns.map((c) => toText(r[c.key])));
-  const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
-  // Force text type on every populated cell (string values already infer 's',
-  // but be explicit so numeric-looking codes are never reinterpreted).
-  const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
-  for (let R = range.s.r; R <= range.e.r; R++) {
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
-      if (cell) cell.t = "s";
+  const letters = new Map(
+    columns.map((c, i) => [c.key, XLSX.utils.encode_col(i)] as const),
+  );
+  const col = (key: string) => letters.get(key) ?? "A";
+
+  const ws: Record<string, unknown> = {};
+  columns.forEach((c, C) => {
+    ws[XLSX.utils.encode_cell({ r: 0, c: C })] = { t: "s", v: c.label ?? c.key };
+  });
+  rows.forEach((row, i) => {
+    const R = i + 1;
+    columns.forEach((c, C) => {
+      const address = XLSX.utils.encode_cell({ r: R, c: C });
+      if (c.formula) {
+        // No `v`: Excel/LibreOffice compute the value when the file is opened.
+        ws[address] = { t: "n", f: c.formula(R + 1, col), z: c.format };
+        return;
+      }
+      const value = exportValue(c, row);
+      // Leave the cell out entirely rather than writing an empty string, so
+      // formulas testing ="" (and Excel's own blank checks) behave.
+      if (value === null || value === undefined || value === "") return;
+      if (c.type === "number" && typeof value === "number") {
+        ws[address] = { t: "n", v: value, z: c.format };
+        return;
+      }
+      ws[address] = { t: "s", v: toText(value) };
+    });
+  });
+  ws["!ref"] = XLSX.utils.encode_range({
+    s: { r: 0, c: 0 },
+    e: { r: rows.length, c: Math.max(columns.length - 1, 0) },
+  });
+  ws["!cols"] = columns.map((c) => {
+    let width = (c.label ?? c.key).length;
+    for (const row of rows.slice(0, 200)) {
+      width = Math.max(width, toText(exportValue(c, row)).length);
     }
-  }
+    return { wch: Math.min(45, Math.max(8, width + 2)) };
+  });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Export");
   XLSX.writeFile(wb, filename);
@@ -164,10 +208,11 @@ function CatalogCell({
     return <span className="font-mono">{String(value)}</span>;
   }
   if (variant === "date" && typeof value === "string") {
-    // Slovenian display format D.M.YYYY (e.g. 2026-07-04 -> 4.7.2026). Storage
-    // stays ISO — Hermes and date sorting rely on it — so this is display-only.
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-    if (m) return <>{`${Number(m[3])}.${Number(m[2])}.${m[1]}`}</>;
+    // Same DD.MM.YYYY the client's catalogue and our export use (2026-07-04 ->
+    // 04.07.2026). Storage stays ISO — Hermes and date sorting rely on it — so
+    // this is display-only.
+    const shown = formatDmy(value);
+    if (shown) return <>{shown}</>;
   }
   return <>{String(value)}</>;
 }
@@ -189,7 +234,7 @@ export function CatalogTable({
   addLabel = "Add row",
   searchPlaceholder = "Search catalog…",
   pinColumns = ["artist", "title"],
-  exportKeys,
+  exportPreset,
   exportFormat = "csv",
 }: {
   table: string;
@@ -210,11 +255,13 @@ export function CatalogTable({
   searchPlaceholder?: string;
   pinColumns?: string[];
   /**
-   * Fixed allow-list of column keys (in order) to include in the CSV export,
-   * regardless of what's visible on screen. When omitted, export mirrors the
-   * visible columns.
+   * Named export layout (see `catalog-export.ts`) used verbatim, regardless of
+   * what's visible on screen. It can add derived, repeated and computed columns
+   * that have no on-screen equivalent. When omitted, the export mirrors the
+   * visible columns. A plain string so this stays serialisable across the
+   * server/client boundary — the layouts themselves hold functions.
    */
-  exportKeys?: string[];
+  exportPreset?: ExportPreset;
   /** File format for the Export buttons. Defaults to CSV. */
   exportFormat?: "csv" | "xlsx";
 }) {
@@ -635,14 +682,18 @@ export function CatalogTable({
     .getAllLeafColumns()
     .filter((c) => c.getCanHide());
 
-  // Export: when the caller pins an explicit `exportKeys` allow-list, use it
-  // verbatim (order + only those columns) no matter what's visible. Otherwise
-  // mirror the visible columns + order (hidden columns stay out of the file).
-  const exportColumns = () => {
+  // Export: when the caller names a preset layout, use it verbatim (order +
+  // only those columns) no matter what's visible, filling in headers from the
+  // on-screen labels where the layout doesn't override them. Otherwise mirror
+  // the visible columns + order (hidden columns stay out of the file).
+  const exportColumns = (): ExportColumnSpec[] => {
     const labelFor = (key: string) =>
       (allSpecs.find((s) => s.key === key)?.label ?? key);
-    if (exportKeys) {
-      return exportKeys.map((key) => ({ key, label: labelFor(key) }));
+    if (exportPreset) {
+      return EXPORT_PRESETS[exportPreset].map((c) => ({
+        ...c,
+        label: c.label ?? labelFor(c.key),
+      }));
     }
     return table
       .getVisibleLeafColumns()

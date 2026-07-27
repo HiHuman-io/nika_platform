@@ -24,6 +24,11 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "release_date", label: "Release", variant: "date", size: 105 },
   // Readable reason (pulled from the `extra` jsonb) — mainly for excluded lines.
   { key: "exclusion_reason", label: "Exclusion reason", size: 200 },
+  // Also out of `extra`, hidden until wanted: why the workflow wants a human to
+  // look (e.g. an indefinite territory), and follow-ups that arrived after the
+  // line had already gone to Hermes and so were deliberately not applied.
+  { key: "review_note", label: "Review note", size: 240, hidden: true },
+  { key: "late_update", label: "Late update", size: 240, hidden: true },
   { key: "calculation_group", label: "Calculation group", size: 130 },
   { key: "supplier_code", label: "Supplier code", size: 110 },
   // Price block: Rock Bottom -> COP -> PPD -> Our price.
@@ -106,11 +111,20 @@ export default async function CatalogPage() {
   //  - exclusion_reason: pulled out of the `extra` jsonb so the reason a line was
   //    excluded is a plain, readable column (the raw `extra` blob stays too).
   const rows = (data ?? []).map((r) => {
-    const extra = (r.extra ?? null) as { exclusion_reason?: string | null } | null;
+    const extra = (r.extra ?? null) as {
+      exclusion_reason?: string | null;
+      review_note?: string | null;
+      late_update?: { at?: string; changes?: string[] } | null;
+    } | null;
+    const late = extra?.late_update ?? null;
     return {
       ...r,
       hermes_sent: r.sent_at ? "sent" : "not_sent",
       exclusion_reason: extra?.exclusion_reason ?? null,
+      review_note: extra?.review_note ?? null,
+      late_update: late
+        ? `${late.at ?? ""} ${(late.changes ?? []).join("; ")}`.trim()
+        : null,
     };
   });
 
@@ -119,11 +133,6 @@ export default async function CatalogPage() {
   const mainRows = rows.filter((r) => r.catalog !== "other");
   const otherRows = rows.filter((r) => r.catalog === "other");
 
-  // Exact columns + order for the xlsx export (client 2026-07) — nothing else.
-  const EXPORT_KEYS = [
-    "artist", "title", "unit", "format", "ean", "label", "code", "catalogue_no",
-    "release_date", "our_price", "cop", "ppd", "hermes_id",
-  ];
   // Same table for both tabs; only the rows and the new-row catalog default
   // differ. `catalog` is an editable select, so a line can be moved between them.
   const renderTable = (catalogRows: typeof rows, catalog: "main" | "other") => (
@@ -146,7 +155,9 @@ export default async function CatalogPage() {
       bulkApprove={{ label: "Approve", status: "approved" }}
       selectionAction={{ label: "Send to Hermes" }}
       exportFormat="xlsx"
-      exportKeys={EXPORT_KEYS}
+      // Column-for-column with the client's own catalogue workbook — the
+      // layout lives in `components/catalog-export.ts`.
+      exportPreset="catalog"
     />
   );
 

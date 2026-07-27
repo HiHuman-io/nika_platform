@@ -58,16 +58,30 @@ the **Catalog** field.
 - **Status vs Hermes.** The **Status** column is your workflow (In progress → Approved).
   Whether a line reached Hermes is shown separately in the **Hermes** column.
 - **Automatic updates.** When a follow-up email arrives about a release already in the
-  list (matched by barcode/EAN), the system **updates that line** instead of creating a
-  duplicate — only the new information changes; the rest is kept.
-- **Review regularly (important).** The system checks each new email against the lines
-  still *In progress*. Approving or excluding lines regularly keeps that list short and
-  the extraction fast and accurate.
+  list, the system **updates that line** instead of creating a duplicate — only the new
+  information changes; the rest is kept, including anything you typed yourself (such as
+  **Our price**) and which catalog tab you moved the line to. Lines are matched on the
+  **EAN**, and failing that on the **catalogue number** — never on artist and title,
+  since the same artist, title and format is often several different products. A release
+  that arrives with neither identifier is always added as a new line, so those are the
+  ones to merge by hand.
+- **Already approved, already sent.** An approved line that has *not* gone to Hermes yet
+  is still updated automatically, but its status stays **Approved** — the system never
+  silently un-approves your work. Once a line has been **sent** to Hermes it is frozen:
+  Hermes cannot take an update, so a later email is recorded in the hidden **Late
+  update** column instead of being applied. Turn that column on via **Columns** if a
+  release date looks out of date.
+- **Nothing is excluded on a guess.** A release is only excluded when the email clearly
+  says it cannot be sold here. "WW ex US" means *everywhere except the US*, so it stays
+  in the catalog. Where the wording is genuinely unclear the line is kept and a note is
+  left in the hidden **Review note** column.
 - **Search & filter.** Use the search box and the per-column filter icons — filters
   cover the **whole** catalog, not just the visible page.
 - **Columns.** Use **Columns** to show/hide columns (some are hidden by default).
-- **Export.** **Export** downloads an Excel (.xlsx) with the agreed columns; the EAN
-  keeps its leading zeros.
+- **Export.** **Export** downloads an Excel (.xlsx) laid out like your own catalogue
+  workbook. Dates come out as `DD.MM.YYYY`, the calculation group as **F/M/B**, and the
+  EAN keeps its leading zeros. Prices are real numbers, so the **Our price 95%** column
+  is a live formula — change **Our price** in Excel and it recalculates itself.
 
 ---
 
