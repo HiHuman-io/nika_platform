@@ -28,11 +28,14 @@ where regexp_replace(upper(coalesce(label, '')), '[^A-Z0-9]', '', 'g')
   and catalog is distinct from 'other';
 
 -- APPLY 2/2 — supplier_code, NOT-yet-sent lines only:
---   Matrix Music -> '54', I-DI music / Pias Recordings -> blank.
+--   Matrix Music -> '54', Pias Recordings -> '1009', I-DI music -> blank
+--   (code still unknown, client to confirm).
 update public.catalog_lines
 set supplier_code = case
       when regexp_replace(upper(coalesce(label, '')), '[^A-Z0-9]', '', 'g')
            in ('MATRIXMUSIC', 'MATRIX') then '54'
+      when regexp_replace(upper(coalesce(label, '')), '[^A-Z0-9]', '', 'g')
+           in ('PIASRECORDINGS', 'PIAS') then '1009'
       else null
     end
 where sent_at is null
@@ -45,5 +48,9 @@ from public.catalog_lines
 where regexp_replace(upper(coalesce(label, '')), '[^A-Z0-9]', '', 'g')
       in ('MATRIXMUSIC', 'MATRIX', 'IDIMUSIC', 'IDI', 'PIASRECORDINGS', 'PIAS')
   and (catalog is distinct from 'other'
-       or (sent_at is null and supplier_code is not null
-           and regexp_replace(upper(coalesce(label, '')), '[^A-Z0-9]', '', 'g') not in ('MATRIXMUSIC', 'MATRIX')));
+       or (sent_at is null and supplier_code is distinct from case
+             when regexp_replace(upper(coalesce(label, '')), '[^A-Z0-9]', '', 'g')
+                  in ('MATRIXMUSIC', 'MATRIX') then '54'
+             when regexp_replace(upper(coalesce(label, '')), '[^A-Z0-9]', '', 'g')
+                  in ('PIASRECORDINGS', 'PIAS') then '1009'
+           end));
