@@ -1,0 +1,892 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "nika-import",
+        "options": {}
+      },
+      "id": "fa725803-1fb3-418f-8d37-791f1ee5da07",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        384,
+        -80
+      ],
+      "webhookId": "0fcff10d-8612-4628-b95a-a7a8ca7ff767"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "manual_imports",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.import_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "processing"
+            }
+          ]
+        }
+      },
+      "id": "e6789293-bb6c-4fb8-bf80-2eba63635bfb",
+      "name": "Mark Processing",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -752
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "senders",
+        "returnAll": true
+      },
+      "id": "91ffb396-ac90-4beb-96ee-67520d4731c5",
+      "name": "Senders",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -560
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "glossary",
+        "returnAll": true
+      },
+      "id": "2c131c29-6553-405d-b042-6faee52dee65",
+      "name": "Glossary",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -368
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "exclusions",
+        "returnAll": true
+      },
+      "id": "4dcd9ba5-9d22-41d7-8619-255bfca64820",
+      "name": "Exclusions",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -176
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "mandatory_fields",
+        "returnAll": true
+      },
+      "id": "8077c5e8-364b-4291-ab50-5c478e2bf00d",
+      "name": "MandatoryFields",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        16
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "label_notes",
+        "returnAll": true
+      },
+      "id": "ae42abd0-6c20-4e2e-bbf4-24a4d15923b8",
+      "name": "LabelNotes",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "catalog_lines",
+        "returnAll": true,
+        "filters": {}
+      },
+      "id": "6b891d2a-c21b-42a7-abe3-d0aadef05073",
+      "name": "Catalog Lines (matching)",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        608,
+        400
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      },
+      "notes": "All catalog_lines: the deterministic matcher needs sent lines too, to flag follow-ups it must not apply. Not sent to the model."
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.file_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "de318aa6-1969-4153-bc73-590effb8bb41",
+      "name": "Download File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "id": "cedf4998-b160-44ea-81c6-5e1845c8fb14",
+      "name": "Wait Parse",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        592
+      ],
+      "webhookId": "edf34235-046b-4312-bd75-07fd8dc4c983"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "349acb71-a267-47ca-b354-b3ca0fb9f8e2",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "SUCCESS",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "89570c07-6b09-48ed-96a1-43ebe382b02e",
+      "name": "If Parse Done",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1504,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0cb379bd-e9ac-4864-ae73-9e98a28b0855",
+              "name": "from",
+              "value": "={{ $('Webhook').item.json.body.sender_email }}",
+              "type": "string"
+            },
+            {
+              "id": "d0214d12-0498-4941-9184-e991c904cf2e",
+              "name": "from_name",
+              "value": "={{ $('Webhook').item.json.body.sender_email }}",
+              "type": "string"
+            },
+            {
+              "id": "30dfac05-1bdb-4da7-b32f-162d938f1eb7",
+              "name": "subject",
+              "value": "={{ $('Webhook').item.json.body.file_name }}",
+              "type": "string"
+            },
+            {
+              "id": "6318d02b-abce-46d2-977c-753e604f9459",
+              "name": "date",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            },
+            {
+              "id": "a1248fbc-f4c7-4b4f-a360-b2f93acdb8dd",
+              "name": "thread_id",
+              "value": "={{ $('Webhook').item.json.body.import_id }}",
+              "type": "string"
+            },
+            {
+              "id": "b06b8629-ed57-4776-903c-221e72e698c1",
+              "name": "message_id",
+              "value": "={{ $('Webhook').item.json.body.import_id }}",
+              "type": "string"
+            },
+            {
+              "id": "c2fb7042-5ca5-4d7a-86fa-bef61a2dca21",
+              "name": "body",
+              "value": "={{ ($('Webhook').item.json.body.context || '').slice(0, 8000) }}",
+              "type": "string"
+            },
+            {
+              "id": "2524cab3-a76c-4ab2-ad44-bcc09a13a75c",
+              "name": "attachments_text",
+              "value": "={{ ((($json.pages || []).map(p => p.md || p.text || '').filter(Boolean).join('\\n\\n')) || $json.markdown || $json.text || '').slice(0, 40000) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1e383719-c7f8-45f2-9460-7164d2f70f6b",
+      "name": "Set Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1952,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "options": {
+          "systemMessage": "=You are a data-extraction assistant for Nika, a distributor of CDs, vinyl and other\nrecorded music. Record labels send Nika catalog updates — by email or as uploaded\nfiles (Excel/PDF lists). These sources are messy and inconsistent: many formats,\nfrequent acronyms or code-words, and often incomplete. Your job is to read ONE\nsource (an email or one uploaded file) and turn it into clean, structured catalog data.\n\nYou do these things:\n1. Decide whether the source is relevant to the music catalog at all.\n2. Identify which record label it is from, using the sender->label map provided.\n3. Extract every catalog item and its fields, applying the rules provided.\n4. Report every field the source states. Deciding whether an item is new or an update\n   is NOT your job — that happens downstream, in code.\n\nThe user message contains a RULES section (sender->label map, glossary, exclusion\nkeywords, mandatory fields, per-label notes) and the SOURCE.\nApply the rules exactly as given. They change over time, so never rely on memory of\nprevious rules — only use what is in this message.\n\nGeneral principles:\n- Never invent or guess data. If a field is not present, return null. Do not fabricate\n  barcodes, prices, dates, codes, or titles.\n- Output the EAN/barcode exactly as written, as a STRING, preserving leading zeros.\n  Never turn it into a number. (The shortened catalog CODE is computed automatically\n  downstream — you do NOT need to produce it.)\n- Work ONLY from this source. One source may contain zero, one, or many items (e.g. a\n  release list). Return one entry per item.\n- Be conservative with confidence. When unsure, lower confidence and set\n  needs_review=true with a reason instead of guessing.\n- Decode acronyms/code-words using the glossary. If you hit one that is NOT in the\n  glossary and seems important, flag it — do not guess its meaning.\n\nIdentifying the label — match on the DISPLAY NAME, not only the email address:\n- Several labels send from the SAME shared address (e.g. wm-see-licensees@warnermusic.com);\n  the actual sub-label is determined by the sender DISPLAY NAME / contact (e.g.\n  \"Crystal Murphy\" -> WARNER/RHINO, \"Geneva Gamblin\" -> ATLANTIC / FUELED BY RAMEN).\n- Always match using BOTH the sender display name and the email against the\n  sender->label map; if the display name matches an entry, prefer it.\n- Set supplier_code from the matched entry (Warner is almost always 149).\n- If neither display name nor email matches, set label to null and flag it.\n- Labels are prefixed with the parent group: use \"WARNER\" or \"WARNER/<sub-label>\" (e.g. \"WARNER/ATLANTIC\"), EXCEPT NONESUCH and ROADRUNNER, which are written WITHOUT the Warner prefix.\n- A sender may map to SEVERAL candidate sub-labels (they appear as multiple rows for the same sender, and/or the sender \"notes\" say when each applies). Pick the specific sub-label from hints in THIS email (artist, musical style, imprint mentioned, catalogue prefix). If the hints are not conclusive, set label to null and flag for review — do NOT guess.\n- A generic Warner address whose specific sub-label cannot be known (e.g. music@warner.com or any warner.com sender) must NOT be auto-mapped: set label to null and flag for review.\n\n- If the SOURCE ITSELF names the label/imprint PER ITEM — e.g. a \"Label\" column in a release table — set the item's `label` to that value EXACTLY AS PRINTED (verbatim, e.g. \"Rhino Atlantic\", \"PLG UK Frontline\"). Do NOT reformat, translate or prefix it — the canonical catalog name is applied downstream from a fixed map. Output a `label` on EVERY such item. This is reading the data, so it applies EVEN WHEN the sender address does not map, and you do NOT need to flag the source for review merely because the sender did not map (still flag for any OTHER reason, e.g. a code-name/pseudonym).\n- Only when the source gives NO per-item label do you fall back to the sender->label map above (label null + flag when it cannot be resolved).\n\nArtist & title formatting:\n- Individual artist: SURNAME FIRSTNAME in capitals, no comma (e.g. \"Joni Mitchell\" ->\n  \"MITCHELL JONI\").\n- Band/group: full name in capitals, dropping a leading \"THE\" (e.g. \"The Doors\" ->\n  \"DOORS\").\n- Multiple artists on one item: join with a FORWARD SLASH \"/\" (e.g. \"BYRNE DAVID/FATBOY SLIM\").\n- TITLE: always output the title in ALL CAPS, and drop a leading \"THE\" the same way as band names (e.g. \"The Wall\" -> \"WALL\"). Only the first leading \"THE\" is removed; keep any \"the\" that appears later in the title.\n- Always keep the original, unmodified text in artist_raw.\n- CRITICAL: NEITHER the artist NOR the title may EVER start with \"THE\", and the artist may NEVER end with \"THE\" either. A name beginning with \"The\" (The Shadows, The Darkness, The Bends) is ALWAYS a BAND — drop the leading \"The\" (\"The Shadows\" -> \"SHADOWS\"). NEVER treat \"The\" as a first name and move it to the end: \"SHADOWS THE\" / \"DARKNESS THE\" is WRONG. Always strip a leading \"THE \" from BOTH artist and title (artist \"The Doors\" -> \"DOORS\"; title \"The Wall\" -> \"WALL\"); remove only the first leading \"THE\" and keep any later \"the\".\n- TITLE = the CLEAN release name ONLY. NEVER put edition / version / packaging details in the title: no \"(LIMITED)\", \"(LTD)\", \"(INDIE EXCLUSIVE)\", \"(RSD)\", \"(SIGNED)\", \"(GREEN VINYL)\", \"(BLACK & WHITE VINYL)\", \"(DIE-CUT PICTURE DISC)\", \"(LTD RED 2LP)\", \"(DIGI)\", \"(MC)\", \"(T-SHIRT + PATCH)\", no disc counts, colours or packaging. Example: source \"Water Taste Of Blood (Ltd Red 2LP)\" -> title \"WATER TASTE OF BLOOD\". Put those details in item_notes instead. DO keep text that is genuinely part of the work's name (e.g. \"(EN VIVO DESDE BELLAS ARTES)\").\n- Soundtracks/compilations with no single artist: use the glossary marker (e.g. OST).\n\nClassical music (special naming — there is NO separate composer field):\n- Put the PERFORMER(s) in artist (e.g. \"QUEFFELEC ANNE\"; multiple performers joined with \"/\").\n- Put the COMPOSER as a SURNAME only at the FRONT of title, followed by the work, e.g.\n  artist=\"QUEFFELEC ANNE\", title=\"SATIE: 3 GYMNOPEDIES, 8 GNOSSIENNES & OTHER PIANO WORKS\".\n\nSales / territory restrictions (Nika is based in Slovenia, in the EU — it can ONLY\ncommercialise releases available for sale in Slovenia/Europe). When a release is\ngenuinely blocked here, set excluded=true WITH a specific exclusion_reason, but still\nextract the item:\n- Marked \"D2C\" / direct-to-consumer.\n- \"US ONLY\" / \"US/CANADA ONLY\", or any release restricted to a territory that does NOT include Slovenia/Europe (i.e. it cannot be sold in Slovenia).\n- Amazon-exclusive vinyl (there is no Amazon Slovenija).\n- Artist-web-store-only releases.\n- DIGITAL releases — a digital / download / streaming format (\"digital\", \"download\", \"DL\",\n  \"streaming\"). Nika stocks physical product only: set excluded=true with exclusion_reason\n  exactly \"Digital Release\".\nAlso apply any exclusion keywords listed in the RULES.\n\nCRITICAL — \"worldwide EXCEPT <territory>\" means the release IS available here:\n- \"WW ex US\", \"World excluding US\", \"Worldwide except North America\" and similar wordings mean the release is sold EVERYWHERE EXCEPT that one territory. Slovenia is not in it, so the release IS available in Europe -> excluded=false. Only exclude when the excluded territory ITSELF covers Europe / the EU / Slovenia (e.g. \"WW ex Europe\").\n- NEVER exclude an item because the territory is unclear, unstated, or only possibly restrictive. No territory information at all means no restriction — include it. If you are genuinely unsure, keep excluded=false and raise needs_review with the reason instead. Excluding a sellable release costs the client real business; flagging one for review costs nothing.\n- Worked example: \"Release Date: 25th September WW ex US, 16th October (US)\" is available in Europe on 25 September -> excluded=false, release_date \"2026-09-25\", item_notes \"US release 2026-10-16\".\n\nRelease dates when several territories are listed:\n- release_date = the EUROPEAN (or worldwide) date, always as YYYY-MM-DD.\n- Put the other territories' dates in item_notes.\n- A date with no year (e.g. \"25th September\") means the next such date on or after the source's own date.\n\nGenre:\n- Populate genre from your OWN general knowledge of the artist/release (e.g. \"Rock\",\n  \"Jazz\", \"Classical\", \"Electronic\", \"Pop\"). You CANNOT browse the web. If you are not\n  reasonably confident, set genre to null — never guess wildly. Genre is optional.\n\nFormat (Hermes convention — any multiplier NUMBER goes AFTER the letters):\n- Single disc: just the letters, no number (\"LP\", \"CD\").\n- Multiple discs: put the count AFTER the letters, never before: \"2LP\" -> \"LP2\", \"2CD\" -> \"CD2\", \"3LP\" -> \"LP3\".\n\nUnit:\n- unit = number of physical discs/records in the package (e.g. 2 for \"2LP\"/\"LP2\" or \"2CD\"/\"CD2\"),\n  default 1 for a single disc.\n\nPrices & currency (amounts are NUMBERS; a decimal comma like \"5,92\" means 5.92; NEVER convert between currencies):\n- Fill the EUR price fields below ONLY from prices given in EUR (€). If the email has NO euro prices at all, leave cop/ppd_eur/rock_bottom null and instead put the original amount in \"price\" and its ISO currency in \"currency\" (e.g. price 29.00, currency \"GBP\") — we do NOT convert; the client fills EUR manually.\n- cop: the \"COP\" price, in EUR.\n- ppd_eur: the \"Guide PPD EUR\" price, in EUR.\n- rock_bottom: the \"Rock Bottom\" price, in EUR.\n- Ignore \"ERP\" entirely.\n- When any euro price is present, leave \"price\" and \"currency\" null. Any missing category -> null.\n\nCalculation group (price tier):\n- calculation_group is \"1\" (full price), \"2\" (mid price) or \"3\" (budget price) — a plain digit, no leading zero.\n- DEFAULT to \"1\". Use \"2\" or \"3\" ONLY if the email/source clearly states the release is mid-price or budget.\n\nCode-names / high-profile artists:\n- Some labels use code-names before release (e.g. \"Skylar\" standing in for a major\n  artist), resolved only by contacting the label — often via a private project-site link\n  imported separately. NEVER resolve or guess a code-name. Keep the code-name in\n  artist_raw, set what you safely can, lower confidence, set needs_review=true and\n  explain in review_reasons.\n\nRelevance:\n- The catalog holds ONLY new/upcoming RELEASE announcements. It must NEVER contain a\n  purchase order or an invoice.\n- This mailbox also receives non-catalog mail: buyer PURCHASE ORDERS (a customer ordering\n  products from us), supplier INVOICES (billing us for stock we already bought), order\n  confirmations and admin mail (often titled \"Naročilo\"/\"Order\"/\"Račun\"/\"Invoice\"). Classify\n  ALL of these as is_catalog_relevant=false with the reason and an empty items array — a new\n  release NEVER arrives as an order or an invoice.\n- Decide what a source IS from its full CONTENT — READ THE EMAIL BODY AND THE ATTACHMENTS, and use the document structure and meaning, not just the subject line. An order or invoice reads as a TRANSACTION (line items with quantities ordered, an order/invoice number, buyer/billing or delivery details, amounts being charged); a catalog update reads as an ANNOUNCEMENT of releases to add. When the content shows it is an order or an invoice, set is_catalog_relevant=false no matter how many product lines it lists.\n- The SAME company is often both a supplier and a buyer: whenever they ORDER or INVOICE,\n  exclude it; only their genuine new/upcoming release announcements belong in the catalog.\n\nMatching is NOT your job — it happens downstream, deterministically, in code:\n- You are not given the existing catalog, and you must NOT output action or match_line_id; both are ignored. After you return, every item is matched against the existing lines on the EAN, and failing that on the catalogue number. NOTHING else is used to match — never artist, title or format.\n- Because that match relies entirely on those two identifiers, getting them right matters more than anything else you output. Copy the EAN EXACTLY, as a string, with its leading zeros, and copy the catalogue number exactly as printed. An item with neither becomes a brand-new line that a human has to merge by hand, so if either identifier is anywhere in the source, find it.\n- Report EVERY other field this source actually states for each item, every time — including on an obvious follow-up email. A field you leave null is preserved from the existing line, so null never destroys stored data; but a value you fail to report is a value the client has to retype by hand.\n- Still NEVER invent a value to fill a gap, and NEVER invent an EAN or catalogue number to make an item look complete. Not stated in this source = null, and list it in missing_mandatory."
+        },
+        "text": "=RULES (apply exactly; current rules, may change):\n\nSender -> label map (match on display name AND email):\n{{ JSON.stringify($('Senders').all().map(i => i.json)) }}\n\nGlossary:\n{{ JSON.stringify($('Glossary').all().map(i => i.json)) }}\n\nExclusion keywords:\n{{ JSON.stringify($('Exclusions').all().map(i => i.json)) }}\n\nMandatory fields:\n{{ JSON.stringify($('MandatoryFields').all().map(i => i.json)) }}\n\nPer-label notes:\n{{ JSON.stringify($('LabelNotes').all().map(i => i.json)) }}\n\nSOURCE TO PROCESS (uploaded file):\n{{ $json.chunk_note }}\nSender (provided by uploader): {{ $json.from }}\nFile: {{ $json.subject }}\nDate: {{ $json.date }}\nThread ID: {{ $json.thread_id }}\nUploader context/notes:\n{{ $json.body }}\n\nFILE CONTENTS (parsed to Markdown — tables, columns and headings preserved):\nONE SOURCE, SEVERAL RENDERINGS — never output the same release twice. The uploader's notes and\nthe file contents are the SAME submission extracted in different ways, and the file may present a\nrelease as a table row AND repeat it in running text; its pages arrive as Markdown, or as flat\ntext only for the pages that could not be rendered as Markdown — never as both. So a\nrelease that shows up more than once is ONE item: emit it ONCE and merge everything known about\nit (the version with more detail wins, and a field filled in one place is kept). Two items are\ndifferent products only when an identifier (EAN or catalogue number) differs — the same artist,\ntitle and format with different barcodes ARE two items.\nIn a Markdown table the header row names the columns and EVERY OTHER ROW IS ONE ITEM: read each\nrow column by column, never merge two rows into one item and never split one row into two. A cell\nmay be empty — leave the field null rather than borrowing the value from a neighbouring row.\n{{ $json.attachments_text }}"
+      },
+      "id": "2ae765a7-d675-4b02-ae5f-053dc4207e84",
+      "name": "AI Intelligence",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        2320,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {}
+      },
+      "id": "azure-chat-man-01",
+      "name": "Azure OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAzureOpenAi",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        780
+      ],
+      "credentials": {
+        "azureOpenAiApi": {
+          "id": "DTrGh3QjZ78n9ERH",
+          "name": "Nika - Azure Open AI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "a97c1f79-4cf8-4157-83fd-4649598948d5",
+              "leftValue": "={{ (function(){ var o=$json.output; if(typeof o!=='string') return o && o.is_catalog_relevant; var a=o.indexOf('{'), b=o.lastIndexOf('}'); try { return JSON.parse(a>=0&&b>a?o.slice(a,b+1):o).is_catalog_relevant; } catch(e){ return false; } })() }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7fa8868b-57ba-41c5-83fc-9be432af109a",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2528,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "manual_imports",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.import_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "done"
+            }
+          ]
+        }
+      },
+      "id": "7231a258-6c8a-4d9d-8076-5789c2f35436",
+      "name": "Mark Done",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2528,
+        688
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Explode each relevant AI result into one row per catalog item, mapped to the REAL\n// catalog_lines columns, and decide DETERMINISTICALLY (no AI) whether each item is a\n// new line or an update to an existing one. Extras -> extra (jsonb).\n//\n// Matching cascade, in order, against lines NOT yet sent to Hermes:\n//   1. EAN        — digits only, leading zeros ignored (the same product arrives as\n//                   \"0093624872443\" and as \"093624872443\")\n//   2. catalogue number — punctuation/spacing ignored\n// Identifiers ONLY: artist/title/format are never used to match, because the same\n// artist + title + format is routinely several different SKUs. An item carrying\n// neither an EAN nor a catalogue number therefore always becomes a new line, to be\n// merged by hand. The catalogue-number tier fires only when EXACTLY ONE candidate\n// matches, and never across a conflicting barcode: two lines sharing a catalogue\n// number but carrying different EANs are different products. Anything ambiguous\n// becomes a new line flagged for review rather than a guess.\n//\n// Lines already sent to Hermes are frozen — Hermes is insert-only, so an update\n// cannot be pushed there. A follow-up for one of those leaves the data untouched and\n// records a note instead of disappearing silently.\n\nfunction toCatalogCode(ean) {\n  if (ean === null || ean === undefined) return null;\n  const s = String(ean).replace(/\\D/g, '');\n  if (!s) return null;\n  const trimmed = s.slice(0, -1).replace(/^0+/, '');\n  return trimmed || null;\n}\n\n// Hard guarantee (never trust the model): neither artist nor title may start\n// with \"THE\". Strip a leading \"THE \" (case-insensitive) + surrounding spaces.\nfunction dropThe(s) {\n  if (typeof s !== 'string') return s;\n  const orig = s;\n  let t = s;\n  while (t[0] === ' ') t = t.slice(1);\n  if (t.slice(0, 4).toUpperCase() === 'THE ') { t = t.slice(4); while (t[0] === ' ') t = t.slice(1); }\n  // Also strip a TRAILING \"THE\" (optionally comma-separated): the model reorders a band\n  // like \"The Shadows\" as if it were a person -> \"SHADOWS THE\" / \"SHADOWS, THE\". Never allow it.\n  t = t.replace(/[\\s,]+THE\\s*$/i, '');\n  while (t.length && t[t.length - 1] === ' ') t = t.slice(0, -1);\n  return t === '' ? orig : t;\n}\n\n// Title must carry the RELEASE NAME ONLY. Strip parenthesised/bracketed groups\n// that describe the edition/packaging (and a trailing \" - <colour/format>\" tail),\n// keeping genuine parts of the work's name. What is removed is preserved in\n// extra.title_variant so nothing is lost.\nconst VARIANT_RE = /\\b(VINYL|LP|CD|MC|DIGI|DIGIPAK|DIGIPACK|LTD|LIMITED|EXCLUSIVE|INDIE|RSD|SIGNED|PICTURE|DISC|DIE-CUT|GATEFOLD|T-SHIRT|PATCH|BOXSET|BOX|DELUXE|EDITION|REISSUE|BLACK|WHITE|RED|GREEN|BLUE|YELLOW|GOLD|SILVER|CLEAR|ORANGE|PURPLE|PINK|GREY|GRAY|MARBLE|SPLATTER|GLITTER|TRANSPARENT|INKSPOT|GLOW|SLUDGE|OPAQUE|CRYSTAL|SOFTPAK|JEWEL|AMARAY|LIGHT)\\b/;\nfunction cleanTitle(s) {\n  if (typeof s !== 'string') return { title: s, removed: [] };\n  const removed = [];\n  let t = s.replace(/\\s*[\\(\\[]([^()\\[\\]]*)[\\)\\]]/g, function (m, inner) {\n    if (VARIANT_RE.test(inner.toUpperCase())) { removed.push(inner.trim()); return ''; }\n    return m;\n  });\n  t = t.replace(/\\s+[-–]\\s+([^-–]+)$/, function (m, seg) {\n    const words = seg.trim().toUpperCase().split(/[\\s,\\/&+]+/).filter(Boolean);\n    if (words.length && words.every(function (w) { return VARIANT_RE.test(w) || /^[0-9]+$/.test(w); })) { removed.push(seg.trim()); return ''; }\n    return m;\n  });\n  t = t.replace(/\\s{2,}/g, ' ').replace(/[\\s,;:\\-–]+$/, '').trim();\n  return { title: t, removed: removed };\n}\n// Artist and title are always upper-case (client rule).\nfunction up(s) { return typeof s === 'string' ? s.toUpperCase() : s; }\n\n// calculation_group: the model over-infers a budget/mid tier from label names\n// (\"Back Catalogue\", \"Strategic Marketing\") when the source states no price tier at\n// all. Same policy as the other guards (dropThe/cleanTitle): trust the model's \"2\" or\n// \"3\" ONLY when an explicit budget/mid signal is actually printed in the item notes\n// or the email body — otherwise force the default \"1\".\nconst MIDBUDGET_RE = /\\b(budget|mid[-\\s]?price|mid[-\\s]?line|nice[-\\s]?price|reduced[-\\s]?price|low[-\\s]?price|super[-\\s]?budget)\\b/i;\nfunction calcGroup(item, src) {\n  const g = String(item.calculation_group == null ? '' : item.calculation_group).trim();\n  if (g !== '2' && g !== '3') return '1';\n  const text = (item.item_notes || '') + '\\n' + ((src && src.body) || '');\n  return MIDBUDGET_RE.test(text) ? g : '1';\n}\n\n// Label -> catalog / supplier_code routing. Compared on a NORMALISED key\n// (upper-case, punctuation and spaces removed) because the label arrives in\n// whatever shape the model produces: the prompt writes labels in capitals\n// (\"WARNER/ATLANTIC\"), so the model returns \"PIAS RECORDINGS\", while this code\n// used to compare against the literal 'Pias Recordings'. The compare failed\n// silently and those lines landed in the MAIN catalog with supplier_code '149'\n// instead of OTHER with a blank supplier code. Never compare label strings raw.\nfunction labelKey(s) { return typeof s === 'string' ? s.toUpperCase().replace(/[^A-Z0-9]/g, '') : ''; }\nconst LABEL_ROUTING = {\n  MATRIXMUSIC:    { catalog: 'other', supplier_code: '54' },\n  MATRIX:         { catalog: 'other', supplier_code: '54' },\n  PIASRECORDINGS: { catalog: 'other', supplier_code: '1009' },\n  PIAS:           { catalog: 'other', supplier_code: '1009' },\n  IDIMUSIC:       { catalog: 'other', supplier_code: null },   // code not known yet\n  IDI:            { catalog: 'other', supplier_code: null },\n};\n// Anything else -- including a label the AI could not identify (null) -- is the\n// main catalog on the default supplier code.\nfunction routeLabelDefault() { return { catalog: 'main', supplier_code: '149' }; }\nfunction routeLabel(label) {\n  const r = LABEL_ROUTING[labelKey(label)];\n  return r || routeLabelDefault();\n}\n\n// Raw label as printed in a canvass \"Label\" column -> the client's canonical catalog name\n// (their column-N supplement). Compared on the normalised labelKey. Extend as new sub-labels\n// appear; an unmapped per-row label is FLAGGED for review, never silently mis-named.\nconst LABEL_MAP = {\n  WMFRANCEBACKCATALOGUE: 'WARNER', WARNERRECORDSLABEL: 'WARNER', VAPORPD: 'WARNER',\n  WARNERSTRATEGICMARKETINGUK: 'WARNER', WMAUSTRALIA: 'WARNER', WARNERNASHVILLE: 'WARNER',\n  RHINOWARNER: 'WARNER/RHINO', RHINOATLANTIC: 'WARNER/RHINO/ATLANTIC',\n  ATLANTICRECORDS: 'WARNER/ATLANTIC', PLGUKFRONTLINE: 'PARLOPHONE', PLGUKCATALOG: 'PARLOPHONE',\n};\n// Values already in canonical form (map targets + routed labels + prefix-less Warner labels)\n// must NOT be re-flagged as \"unmapped\" if they arrive as a per-row label.\nconst CANONICAL = new Set(\n  Object.values(LABEL_MAP).map(labelKey)\n    .concat(Object.keys(LABEL_ROUTING))\n    .concat(['NONESUCH', 'ROADRUNNER'].map(labelKey))\n);\n\n// --- matching keys ---------------------------------------------------------\nfunction keyEan(v) {\n  const d = String(v === null || v === undefined ? '' : v).replace(/\\D/g, '').replace(/^0+/, '');\n  return d || '';\n}\nfunction keyCat(v) {\n  return String(v === null || v === undefined ? '' : v).toUpperCase().replace(/[^A-Z0-9]/g, '');\n}\n// Returns {line, via} on a confident match, {ambiguous, count} when more than one\n// candidate fits (never guess), or null when nothing matches.\nfunction findMatch(pool, used, row) {\n  const ean = keyEan(row.ean);\n  const cat = keyCat(row.catalogue_no);\n  const free = pool.filter(function (c) { return !used.has(c.id); });\n  // A candidate carrying a DIFFERENT barcode is a different product, full stop.\n  const eanOk = function (c) { const ce = keyEan(c.ean); return !ce || !ean || ce === ean; };\n\n  const tiers = [];\n  if (ean) tiers.push(['ean', free.filter(function (c) { return keyEan(c.ean) === ean; })]);\n  if (cat) tiers.push(['catalogue_no', free.filter(function (c) { return keyCat(c.catalogue_no) === cat && eanOk(c); })]);\n\n  for (const tier of tiers) {\n    if (tier[1].length === 1) return { line: tier[1][0], via: tier[0] };\n    if (tier[1].length > 1) return { ambiguous: tier[0], count: tier[1].length };\n  }\n  return null;\n}\n\n// --- small helpers ---------------------------------------------------------\nfunction isBlank(v) { return v === null || v === undefined || v === ''; }\nfunction stripBlank(obj) {\n  const out = {};\n  for (const k of Object.keys(obj)) if (!isBlank(obj[k])) out[k] = obj[k];\n  return out;\n}\nfunction appendNote(existing, add) {\n  const cur = String(existing === null || existing === undefined ? '' : existing).trim();\n  if (!add) return cur || null;\n  if (!cur) return add;\n  if (cur.indexOf(add) !== -1) return cur;   // already recorded — don't repeat it\n  return cur + '\\n' + add;\n}\n\n// \"We are not sure\" must NEVER become an exclusion. A \"WW ex US\" release IS\n// sellable in Slovenia; excluding it costs the client real business, while\n// keeping it costs one review. Only a definite restriction excludes.\nconst UNSURE_RE = /\\b(UNCLEAR|UNCERTAIN|AMBIGUOUS|POSSIBLY|POTENTIALLY|PRESUMABLY|APPARENTLY|UNKNOWN|UNSPECIFIED|NOT SPECIFIED|NOT CLEAR|CANNOT BE DETERMINED)\\b/i;\n\n// The catalog holds ONLY new/upcoming releases. Purchase orders and invoices are never\n// catalog updates; the model judges this from the subject but has leaked before, so this is\n// the deterministic net -- SUBJECT only (never the body -> false positives), EN + Slovenian.\nconst ORDER_INVOICE_RE = /(purchase\\s*order|invoice|pro\\s*-?forma|naro[čc]ilo|predra[čc]un|ra[čc]un|dobavnica)/i;\n// Digital / download / streaming: not stockable physical product.\nconst DIGITAL_RE = /\\b(digital|download|streaming|stream)\\b|\\bDL\\b/i;\n// TBC / missing release date -> a far-future sentinel the client reads as \"to be confirmed\".\nconst SENTINEL_DATE = '2099-12-31';\n\n// Fields worth reporting when a follow-up lands on a line that is already in Hermes.\nconst WATCHED = ['artist', 'title', 'format', 'unit', 'ean', 'catalogue_no', 'release_date', 'label', 'cop', 'ppd', 'rock_bottom', 'price_original', 'currency', 'calculation_group'];\n\nconst MANDATORY = $('MandatoryFields').all().map(function (i) { return i.json.field_name; }).filter(Boolean);\n\nconst allLines = $('Catalog Lines (matching)').all().map(function (i) { return i.json; });\nconst openPool = allLines.filter(function (l) { return !l.sent_at; });   // updatable\nconst sentPool = allLines.filter(function (l) { return !!l.sent_at; });  // frozen in Hermes\nconst usedOpen = new Set();\nconst usedSent = new Set();\nconst createdEans = new Set();\nconst createdCatNos = new Set();   // only for items that carry NO barcode — see below\n\nconst rows = [];\nconst inputs = $input.all();\nfor (let i = 0; i < inputs.length; i++) {\n  let result = inputs[i].json;\n  result = result.output ?? result.message?.content ?? result.content ?? result;\n  if (typeof result === 'string') { const a = result.indexOf('{'), b = result.lastIndexOf('}'); try { result = JSON.parse(a >= 0 && b > a ? result.slice(a, b + 1) : result); } catch (e) { continue; } }\n  if (!result || result.is_catalog_relevant === false) continue;\n\n  // One source per run, so fall back to the single item when n8n cannot trace\n  // the pairing through the merge/agent nodes.\n  let src = {};\n  try { src = $('Chunk Source').itemMatching(i).json; }\n  catch (e) { try { src = $('Chunk Source').first().json; } catch (e2) {} }\n  const stamp = String(src.date || '').slice(0, 10) || new Date().toISOString().slice(0, 10);\n\n  // Orders and invoices never enter the catalog -- drop the whole source by SUBJECT.\n  if (ORDER_INVOICE_RE.test(String(src.subject || ''))) continue;\n\n  for (const item of (result.items ?? [])) {\n    const _t = cleanTitle(dropThe(item.title ?? null));\n\n    // Territory guard — see UNSURE_RE above.\n    let excluded = item.excluded === true;\n    let exclusionReason = item.exclusion_reason ?? null;\n    let reviewNote = null;\n    if (excluded && exclusionReason && UNSURE_RE.test(exclusionReason)) {\n      excluded = false;\n      reviewNote = 'Kept in the catalog: the exclusion reason was not definite (\"' + exclusionReason + '\"). Please confirm the territory.';\n      exclusionReason = null;\n    }\n\n    // Prefer a label the SOURCE states per item (e.g. a \"Label\" column in the\n    // canvass) over the sender-resolved one: it is read from the data, not guessed,\n    // and it is per-row, so a single generic-Warner canvass no longer lands every\n    // line with a blank label for the client to type by hand. Routing (catalog +\n    // supplier_code) follows the resolved label.\n    // Digital / download / streaming: not stockable physical product. Detected from the\n    // FORMAT word ONLY -- a physical record can ship with a \"download card\" and must NOT be\n    // caught by scanning the notes.\n    const isDigital = DIGITAL_RE.test(String(item.format || '')) || /digital release/i.test(String(exclusionReason || ''));\n    if (isDigital) { excluded = true; exclusionReason = 'Digital Release'; }\n\n    // Label: the per-item \"Label\" column (v13) is authoritative; its RAW value is mapped to\n    // the client's canonical catalog name via LABEL_MAP (their column-N supplement). An\n    // unmapped per-row label is flagged. A sender-resolved label is already canonical.\n    const rawLabel = (item.label != null && String(item.label).trim() !== '') ? String(item.label).trim() : null;\n    let itemLabel;\n    if (rawLabel) {\n      const k = labelKey(rawLabel);\n      if (LABEL_MAP[k]) itemLabel = LABEL_MAP[k];\n      else if (CANONICAL.has(k)) itemLabel = rawLabel;\n      else { itemLabel = rawLabel; reviewNote = appendNote(reviewNote, 'Label \"' + rawLabel + '\" is not in the catalog label map — confirm/add its canonical name.'); }\n    } else {\n      itemLabel = result.label ?? null;\n    }\n    const routing = routeLabel(itemLabel);\n    const fields = {\n      status: excluded ? 'excluded' : 'in_progress',\n      label: itemLabel,\n      catalog: routing.catalog,\n      thread_id: src.thread_id ?? null,\n      artist: up(dropThe(item.artist ?? null)),\n      title: up(_t.title),\n      format: item.format ?? null,\n      genre: item.genre ?? null,\n      unit: item.unit ?? null,\n      ean: item.ean ?? null,\n      code: isDigital ? null : toCatalogCode(item.ean),\n      catalogue_no: isDigital ? null : (item.catalogue_no ?? null),\n      release_date: item.release_date ?? null,\n      price_original: item.price ?? null,\n      currency: item.currency ?? null,\n      cop: item.cop ?? null,\n      ppd: (function(a,b){a=a!=null?String(a).replace('.',','):null;b=b!=null?String(b).replace('.',','):null;return a&&b?a+'/'+b:(a||b||null);})(item.ppd_eur, item.rock_bottom),\n      rock_bottom: item.rock_bottom ?? null,\n      our_price: null,\n      calculation_group: calcGroup(item, src),\n      supplier_code: routing.supplier_code,\n      confidence: item.item_confidence ?? result.overall_confidence ?? null,\n      notes: item.item_notes ?? null,\n    };\n    const newExtra = stripBlank({\n      artist_raw: item.artist_raw ?? null,\n      title_variant: _t.removed.length ? _t.removed.join(' / ') : null,\n      exclusion_reason: exclusionReason,\n      review_note: reviewNote,\n      needs_review: (result.needs_review || reviewNote) ? true : null,\n      source_message_id: src.message_id ?? null,\n    });\n\n    let match = findMatch(openPool, usedOpen, fields);\n    let ambiguousVia = null;\n    if (match && match.ambiguous) { ambiguousVia = match.ambiguous; match = null; }\n\n    // --- already in Hermes: report, don't touch ----------------------------\n    if (!match) {\n      const frozen = findMatch(sentPool, usedSent, fields);\n      if (frozen && frozen.line) {\n        const line = frozen.line;\n        usedSent.add(line.id);\n        const changes = [];\n        for (const k of WATCHED) {\n          if (isBlank(fields[k])) continue;\n          const ov = line[k];\n          if (String(isBlank(ov) ? '' : ov) !== String(fields[k])) {\n            changes.push(k + ': ' + (isBlank(ov) ? '—' : ov) + ' -> ' + fields[k]);\n          }\n        }\n        // Nothing new (e.g. the same email re-processed) -> no note, no write.\n        if (!changes.length) continue;\n        const note = '[' + stamp + '] Follow-up arrived after this line was sent to Hermes, so it was NOT applied automatically: ' + changes.join('; ');\n        rows.push({ json: {\n          action: 'update',\n          match_line_id: line.id,\n          notes: appendNote(line.notes, note),\n          extra: Object.assign({}, line.extra || {}, { late_update: { at: stamp, via: frozen.via, changes: changes } }),\n        } });\n        continue;\n      }\n    }\n\n    // --- update an open line -----------------------------------------------\n    if (match && match.line) {\n      const line = match.line;\n      usedOpen.add(line.id);\n      const patch = stripBlank(fields);   // only what THIS source actually states\n      delete patch.our_price;             // always null here; the client fills it by hand\n      delete patch.catalog;               // a manual move between Main/Other must stick\n\n      // Never silently un-approve something a human already signed off.\n      let approvedNote = null;\n      if (line.status === 'approved') {\n        delete patch.status;\n        if (excluded) {\n          approvedNote = '[' + stamp + '] This source marks the release as excluded (' + (exclusionReason || 'no reason given') + ') but the line is already approved — left approved, please review.';\n        }\n      }\n\n      const merged = appendNote(line.notes, [fields.notes, reviewNote, approvedNote].filter(Boolean).join(' '));\n      if (isBlank(merged)) delete patch.notes; else patch.notes = merged;\n\n      const mergedExtra = Object.assign({}, line.extra || {}, newExtra);\n      // Back in the catalog -> drop any stale exclusion reason.\n      if (!excluded) mergedExtra.exclusion_reason = null;\n      patch.extra = mergedExtra;\n\n      // Recompute against the MERGED line, not just this source: a follow-up that\n      // supplies the missing EAN should clear \"ean\" from missing_fields.\n      const mergedRow = Object.assign({}, line, patch);\n      if (isBlank(mergedRow.release_date)) { patch.release_date = SENTINEL_DATE; mergedRow.release_date = SENTINEL_DATE; }\n      patch.missing_fields = MANDATORY.filter(function (f) { return isBlank(mergedRow[f]); });\n\n      rows.push({ json: Object.assign({ action: 'update', match_line_id: line.id }, patch) });\n      continue;\n    }\n\n    // --- new line ------------------------------------------------------------\n    // Same-source de-duplication. One email is ONE source rendered several ways\n    // (body + attachment, a table row repeated in running text), so the model can\n    // report the same release more than once; the prompt says not to, this makes\n    // sure of it. Identifiers only, same cascade as the matching above.\n    const ek = keyEan(fields.ean);\n    if (ek && createdEans.has(ek)) continue;   // same barcode listed twice in one source\n    const ck = keyCat(fields.catalogue_no);\n    // A catalogue number is shared by the different SKUs of one release, so it only\n    // proves \"same item\" when NEITHER copy carries a barcode to tell them apart.\n    if (!ek && ck && createdCatNos.has(ck)) continue;\n    if (ek) createdEans.add(ek);\n    if (!ek && ck) createdCatNos.add(ck);\n\n    const row = Object.assign({}, fields);\n    row.extra = Object.assign({}, newExtra);\n    if (ambiguousVia) {\n      row.extra.review_note = appendNote(row.extra.review_note, 'Several open lines matched on ' + ambiguousVia + ' — created a new line instead of guessing which one to update.');\n      row.extra.needs_review = true;\n    }\n    row.notes = appendNote(fields.notes, reviewNote);\n    if (isBlank(row.release_date)) { row.release_date = SENTINEL_DATE; row.extra.release_date_tbc = true; }\n    row.missing_fields = MANDATORY.filter(function (f) { return isBlank(row[f]); });\n    rows.push({ json: Object.assign({ action: 'create', match_line_id: null }, row) });\n  }\n}\nreturn rows;\n"
+      },
+      "id": "9c8417d0-06d2-4077-b9e7-178ccf2516dd",
+      "name": "Build Catalog Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cbaf08ba-6a91-4509-8da3-52e2dd51809c",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "create",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "77d5e78a-473f-4223-81ab-b2f4e85ba4a4",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2976,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "catalog_lines",
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "action,match_line_id"
+      },
+      "id": "1618a5c3-7944-4a93-8315-cb424ce4c5c8",
+      "name": "Insert Catalog Line",
+      "onError": "continueRegularOutput",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3200,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "catalog_lines",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.match_line_id }}"
+            }
+          ]
+        },
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "action,match_line_id"
+      },
+      "id": "4afc47ed-ac6f-419e-9c7a-7531eebe1258",
+      "name": "Update Catalog Line",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3200,
+        496
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "raw_entries",
+        "dataToSend": "autoMapInputData"
+      },
+      "id": "450ae0f8-f443-479b-8481-d259e918c7c7",
+      "name": "Insert Raw Entry",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2976,
+        592
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloud.eu.llamaindex.ai/api/v1/parsing/upload",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer XXXXX"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "c11e2ade-7c4f-44af-acbe-b85f89cde766",
+      "name": "Llamma Parse 1st Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        816,
+        592
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cloud.eu.llamaindex.ai/api/v1/parsing/job/{{ $('Llamma Parse 1st Call').item.json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer XXXXX"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "90897cf8-4e17-4c1f-878e-219653931c99",
+      "name": "LlamaParse Job Status1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        592
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cloud.eu.llamaindex.ai/api/v1/parsing/job/{{ $json.id }}/result/json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer XXXXX"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "3ac53c50-025f-4121-b89f-bf13ba62b5ff",
+      "name": "Llamma Parse 3rd Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1744,
+        592
+      ],
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- v13 Build Raw Entry1 logic (testable copy of the n8n code node body) ----\n// buildRawEntry(inputs, srcFor) where srcFor(i) returns the matching Chunk Source\n// json (the n8n node uses `$(\"Chunk Source\").itemMatching(i)` with a `.first()`\n// fallback).\n//\n// One raw_entries row per SOURCE. The completeness audit — every barcode printed in\n// the source must come back as an item — is written INSIDE `extracted` (jsonb), NOT\n// as a dedicated top-level column. That is the fix for the v12 insert failure: the\n// Supabase node auto-maps its input to real columns, so a top-level key with no\n// column (extraction_audit) makes the whole insert fail and the audit row — the only\n// trace of the email — is lost. `extracted` always exists, so the insert can never\n// fail on it; the Raw Entries page surfaces extracted.extraction_audit as a column.\nconst BARCODE_RE = /\\b\\d{12,14}\\b/g;\n\nfunction keyEan(v) {\n  const s = String(v === null || v === undefined ? '' : v).replace(/\\D/g, '').replace(/^0+/, '');\n  return s || null;\n}\n\nfunction buildRawEntry(inputs, srcFor) {\n  const bySource = {};\n  const order = [];\n  for (let i = 0; i < inputs.length; i++) {\n    let result = inputs[i].json;\n    result = result.output != null ? result.output : (result.message && result.message.content != null ? result.message.content : (result.content != null ? result.content : result));\n    if (typeof result === 'string') { const a = result.indexOf('{'), b = result.lastIndexOf('}'); try { result = JSON.parse(a >= 0 && b > a ? result.slice(a, b + 1) : result); } catch (e) {} }\n\n    const src = srcFor(i) || {};\n    const id = src.message_id != null ? src.message_id : 'unknown';\n    if (!bySource[id]) { bySource[id] = { src: src, items: [], rows: 0, parts: 0, text: '' }; order.push(id); }\n    const b = bySource[id];\n    b.items = b.items.concat((result && result.items) || []);\n    b.rows += Number(src.chunk_rows || 0);\n    b.parts += 1;\n    b.text += '\\n' + (src.body || '') + '\\n' + (src.attachments_text || '');\n    if (result) {\n      if (b.label == null && result.label != null) b.label = result.label;\n      if (b.confidence == null && result.overall_confidence != null) b.confidence = result.overall_confidence;\n      if (b.relevant == null && result.is_catalog_relevant != null) b.relevant = result.is_catalog_relevant;\n      if (b.reason == null && result.relevance_reason != null) b.reason = result.relevance_reason;\n      if (result.needs_review) b.needs_review = true;\n      if (result.review_reasons) b.review_reasons = (b.review_reasons || []).concat(result.review_reasons);\n    }\n  }\n\n  return order.map(function (id) {\n    const b = bySource[id];\n    const bodyFull = b.src.body_full != null ? b.src.body_full : (b.src.body != null ? b.src.body : null);\n    const attFull = b.src.attachments_full != null ? b.src.attachments_full : null;\n    const full = attFull === null && bodyFull === null ? b.text : [bodyFull || '', attFull || ''].join('\\n');\n\n    const returned = {};\n    for (const it of b.items) { const k = keyEan(it && it.ean); if (k) returned[k] = true; }\n    const printed = [];\n    const seen = {};\n    const found = full.match(BARCODE_RE) || [];\n    for (const raw of found) { const k = keyEan(raw); if (k && !seen[k]) { seen[k] = true; printed.push(raw); } }\n    const missing = b.relevant === false ? [] : printed.filter(function (raw) { return !returned[keyEan(raw)]; });\n\n    const audit = missing.length\n      ? b.rows + ' rows in the source, ' + b.items.length + ' items returned (' + b.parts + ' AI part(s)) — ' +\n        missing.length + ' BARCODE(S) NOT EXTRACTED: ' + missing.join(', ')\n      : null;\n\n    return { json: {\n      received_at: b.src.date != null ? b.src.date : null,\n      sender: b.src.from != null ? b.src.from : null,\n      label: b.label != null ? b.label : null,\n      subject: b.src.subject != null ? b.src.subject : null,\n      source_email_id: b.src.message_id != null ? b.src.message_id : null,\n      ean: b.items[0] && b.items[0].ean != null ? b.items[0].ean : null,\n      confidence: b.confidence != null ? b.confidence : null,\n      status: 'new',\n      extracted: {\n        extraction_audit: audit,\n        result: {\n          is_catalog_relevant: b.relevant != null ? b.relevant : null,\n          relevance_reason: b.reason != null ? b.reason : null,\n          label: b.label != null ? b.label : null,\n          needs_review: b.needs_review != null ? b.needs_review : false,\n          review_reasons: b.review_reasons != null ? b.review_reasons : [],\n          items: b.items,\n        },\n        ai_parts: b.parts,\n        source_rows: b.rows,\n        source_body: bodyFull,\n        source_attachments: attFull,\n      },\n    } };\n  });\n}\n\nconst inputs = $input.all();\nfunction srcFor(i) {\n  try { return $(\"Chunk Source\").itemMatching(i).json; }\n  catch (e) { try { return $(\"Chunk Source\").first().json; } catch (e2) { return {}; } }\n}\nreturn buildRawEntry(inputs, srcFor);\n"
+      },
+      "id": "900698e5-c433-4574-8b48-16febc404c1a",
+      "name": "Build Raw Entry1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ---- v13 Chunk Source logic (testable copy of the n8n code node body) ----\n// Exported as chunkSource(inputs) where inputs = [{ json }, ...]; the n8n node\n// wraps the identical body with `const inputs = $input.all();` and `return out;`.\n\nconst MAX_ROWS = 12;\n\n// A Markdown table separator row: | --- | :---: | etc. Tolerates a missing outer pipe.\nconst SEP_RE = /^\\s*\\|?[\\s:|]*-{2,}[\\s:|-]*\\|?\\s*$/;\n// What marks a line as a real PRODUCT row: a barcode-length run (12-14 digits) or a\n// day-month-year date. Deliberately NOT \"any 6+ digit number\" — a canvass id or a\n// price must not be mistaken for a product. A row with neither is treated as a\n// header/caption/continuation, never counted as an item.\nconst BARCODE_RE = /\\d{12,14}/;\nconst DATE_RE = /\\d{1,2}[.\\/-]\\d{1,2}[.\\/-]\\d{2,4}/;\nconst HEADING_RE = /^##\\s+Attachment:/;\n\nfunction isSep(l) { return SEP_RE.test(l); }\nfunction isTableLine(l) { return String(l).trim().charAt(0) === '|'; }\nfunction hasData(l) { return BARCODE_RE.test(l) || DATE_RE.test(l); }\n\n// Words of running prose in a set of lines (excludes the \"## Attachment:\" heading,\n// blanks and separators). Used only to judge whether a blob is \"just a table\" or\n// carries prose that might itself list releases.\nfunction proseWords(lines) {\n  let w = 0;\n  for (const l of lines) {\n    const t = String(l).trim();\n    if (!t || HEADING_RE.test(t) || isSep(t)) continue;\n    w += t.split(/\\s+/).filter(function (x) { return /[A-Za-z]/.test(x); }).length;\n  }\n  return w;\n}\n\n// Parse one contiguous run of \"|\" lines into { head, rows, hasSep }.\n// head  = the title/separator/column-name block that must be repeated in every part.\n// rows  = one string per PRODUCT row (a data line plus any non-data continuation\n//         lines that follow it), so nothing is ever lost or double-counted.\n// LlamaParse commonly emits [title row][--- separator][column header][data rows]:\n// the header sits AFTER the separator, so we anchor on the separator when the first\n// data-looking line appears before it (a captioned/ dated title row).\nfunction splitTableSeg(lines) {\n  let sepIdx = -1;\n  for (let i = 0; i < lines.length; i++) { if (isSep(lines[i])) { sepIdx = i; break; } }\n\n  let first = -1;\n  for (let i = 0; i < lines.length; i++) {\n    if (isSep(lines[i])) continue;\n    if (hasData(lines[i])) { first = i; break; }\n  }\n  // A dated/number-bearing TITLE row before the separator is not a product row:\n  // the real rows start after the separator.\n  if (sepIdx >= 0 && first >= 0 && first < sepIdx) {\n    first = -1;\n    for (let i = sepIdx + 1; i < lines.length; i++) {\n      if (isSep(lines[i])) continue;\n      if (hasData(lines[i])) { first = i; break; }\n    }\n  }\n  if (first < 0) return null;\n\n  const head = lines.slice(0, first);\n  let hasSep = false;\n  for (const l of head) if (isSep(l)) hasSep = true;\n\n  const rows = [];\n  let cur = null;\n  for (let i = first; i < lines.length; i++) {\n    const l = lines[i];\n    if (isSep(l)) continue;\n    if (hasData(l)) { if (cur !== null) rows.push(cur); cur = l; }\n    else { cur = cur === null ? l : cur + '\\n' + l; } // continuation of the current row\n  }\n  if (cur !== null) rows.push(cur);\n  return { head: head, rows: rows, hasSep: hasSep };\n}\n\n// Split one Markdown blob (an email body or one attachment) into parts of at most\n// MAX_ROWS product rows. Returns { total, confident, prose, parts }.\n//   total     = counted product rows across every clean table in the blob.\n//   confident = total>0 AND every \"|\" run we counted looked like a real, separator-\n//               delimited table (so `total` can be trusted as an EXACT count).\n//   prose     = words of running text outside the tables (may itself list releases).\n// A blob that fits in one part is returned whole (only the count is added).\nfunction chunkBlob(text) {\n  const lines = String(text || '').split('\\n');\n  const segs = [];\n  for (const l of lines) {\n    const type = isTableLine(l) ? 'table' : 'text';\n    if (!segs.length || segs[segs.length - 1].type !== type) segs.push({ type: type, lines: [] });\n    segs[segs.length - 1].lines.push(l);\n  }\n\n  let total = 0;\n  let messyTable = false; // a \"|\" run we could not parse, or a table with no separator\n  let prose = 0;\n  for (const s of segs) {\n    if (s.type === 'table') {\n      s.tp = splitTableSeg(s.lines);\n      if (s.tp) { total += s.tp.rows.length; if (!s.tp.hasSep) messyTable = true; }\n      else { messyTable = true; prose += proseWords(s.lines); }\n    } else {\n      prose += proseWords(s.lines);\n    }\n  }\n  const confident = total > 0 && !messyTable;\n\n  if (total <= MAX_ROWS) {\n    return { total: total, confident: confident, prose: prose, parts: [{ text: String(text || ''), rows: total }] };\n  }\n\n  // Long enough to split. Repeat the \"## Attachment:\" heading and the table head in\n  // every part; prose stays with the part it appears in (repeating it would invite\n  // the same release to be extracted twice).\n  const parts = [];\n  let heading = '';\n  let cur = [];\n  let curRows = 0;\n  for (const s of segs) {\n    if (s.type === 'text' || !s.tp) {\n      for (const l of s.lines) { if (HEADING_RE.test(String(l).trim())) heading = String(l).trim(); cur.push(l); }\n      continue;\n    }\n    for (const l of s.tp.head) cur.push(l);\n    for (const row of s.tp.rows) {\n      if (curRows >= MAX_ROWS) {\n        parts.push({ text: cur.join('\\n').trim(), rows: curRows });\n        cur = [];\n        curRows = 0;\n        if (heading) { cur.push(heading); cur.push(''); }\n        for (const l of s.tp.head) cur.push(l);\n      }\n      cur.push(row);\n      curRows++;\n    }\n  }\n  if (curRows) parts.push({ text: cur.join('\\n').trim(), rows: curRows });\n  else if (cur.join('').trim() && parts.length) parts[parts.length - 1].text += '\\n' + cur.join('\\n').trim();\n  return { total: total, confident: confident, prose: prose, parts: parts };\n}\n\n// Build the instruction that governs how many items a part must yield.\n//   rows       = counted product rows in THIS part (0 when nothing tabular counted).\n//   exact      = those rows came from a clean, separator-delimited table, so `rows`\n//                is trustworthy as a hard target.\n//   proseSource= this part ALSO carries running text that is part of the source (not\n//                already-extracted context) and may itself list releases.\n// When both a trustworthy table count AND prose are present, the count is asserted as\n// a FLOOR for the table plus \"extract every release in the text too\" — never a hard\n// total that could make the model drop a prose-only release. When the count is not\n// trustworthy, no number is asserted at all (a wrong number is worse than none); the\n// barcode audit in Build Raw Entry1 is the backstop.\nfunction note(index, count, rows, exact, proseSource, bodyIsSource) {\n  let core;\n  if (rows > 0 && exact && !proseSource) {\n    core = 'This part contains exactly ' + rows + ' product rows: return EXACTLY that many items, one per row, in the same order. Never sample, summarise, shorten or stop early — a row you skip is a release the client never gets to sell.';\n  } else if (rows > 0 && exact && proseSource) {\n    core = 'The table in this part has exactly ' + rows + ' product rows: return an item for EVERY one, one per row, none skipped. The message text above is ALSO part of this source — extract every release it lists in addition (there may be none). Never sample, summarise or stop early.';\n  } else {\n    core = 'Extract every single release this part contains — one item each, reading top to bottom. Never sample, summarise, shorten or stop early; a release you skip is one the client never gets to sell.';\n  }\n  if (count === 1) return core;\n  return 'PART ' + index + ' OF ' + count + ' of this source. ' + core +\n    (bodyIsSource ? '' : ' The message text above is CONTEXT ONLY in this part — the items it lists were already extracted in an earlier part, so do not repeat them here.');\n}\n\nfunction chunkSource(inputs) {\n  const out = [];\n  for (let i = 0; i < inputs.length; i++) {\n    const src = inputs[i].json;\n    const body = src.body || '';\n    const att = src.attachments_text || '';\n    const B = chunkBlob(body);\n    const A = chunkBlob(att);\n    const total = B.total + A.total;\n\n    const base = Object.assign({}, src, { body_full: body, attachments_full: att });\n\n    // Whole source fits in one AI call. Assert an exact count only when the tables are\n    // clean AND there is no substantial prose that might carry its own releases.\n    if (total <= MAX_ROWS) {\n      const cleanTables = (A.total === 0 || A.confident) && (B.total === 0 || B.confident);\n      const proseSource = (A.prose + B.prose) > 40; // running text beyond the table(s)\n      const exact = total > 0 && cleanTables;\n      out.push({\n        json: Object.assign({}, base, {\n          chunk_index: 1, chunk_count: 1, chunk_rows: total,\n          chunk_note: note(1, 1, total, exact, proseSource, true),\n        }),\n        pairedItem: { item: i },\n      });\n      continue;\n    }\n\n    // Long source. Which carrier is long decides the shape (mirrors v12): a short body\n    // rides on every attachment part as context; a body long enough to split becomes\n    // parts of its own and the attachment parts that follow drop it.\n    const used = function (p) { return p.rows > 0 || p.text.trim() !== ''; };\n    const bParts = B.parts.filter(used);\n    const aParts = A.parts.filter(used);\n    const bodyIsProse = B.total === 0 && B.prose > 0; // body carries releases only as text\n    const bodyProseSource = bodyIsProse && B.prose > 40;\n\n    const parts = [];\n    if (B.total > MAX_ROWS) {\n      for (const p of bParts) parts.push({ body: p.text, att: '', rows: p.rows, exact: B.confident, proseSource: B.prose > 40, bodySource: true });\n      for (const p of aParts) parts.push({ body: '', att: p.text, rows: p.rows, exact: A.confident, proseSource: false, bodySource: false });\n    } else if (aParts.length) {\n      for (let k = 0; k < aParts.length; k++) {\n        const first = k === 0;\n        parts.push({\n          body: body,\n          att: aParts[k].text,\n          rows: aParts[k].rows + (first ? B.total : 0),\n          exact: A.confident && (!first || B.total === 0 || B.confident),\n          proseSource: first && bodyProseSource,\n          bodySource: first,\n        });\n      }\n    } else {\n      for (const p of bParts) parts.push({ body: p.text, att: att, rows: p.rows, exact: B.confident, proseSource: B.prose > 40, bodySource: true });\n    }\n\n    for (let k = 0; k < parts.length; k++) {\n      const P = parts[k];\n      out.push({\n        json: Object.assign({}, base, {\n          body: P.body,\n          attachments_text: P.att,\n          chunk_index: k + 1,\n          chunk_count: parts.length,\n          chunk_rows: P.rows,\n          chunk_note: note(k + 1, parts.length, P.rows, P.exact, P.proseSource, P.bodySource),\n        }),\n        pairedItem: { item: i },\n      });\n    }\n  }\n  return out;\n}\n\nconst inputs = $input.all();\nreturn chunkSource(inputs);\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        592
+      ],
+      "id": "7c1e5b40-2a44-4d0e-9f2b-4a1c8e6d3f02",
+      "name": "Chunk Source"
+    }
+  ],
+  "connections": {
+    "Azure OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Intelligence",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Mark Processing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Senders",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Glossary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Exclusions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MandatoryFields",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LabelNotes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Catalog Lines (matching)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Llamma Parse 1st Call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Parse": {
+      "main": [
+        [
+          {
+            "node": "LlamaParse Job Status1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Parse Done": {
+      "main": [
+        [
+          {
+            "node": "Llamma Parse 3rd Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Fields": {
+      "main": [
+        [
+          {
+            "node": "Chunk Source",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Intelligence": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Build Catalog Rows",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Build Raw Entry1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Catalog Rows": {
+      "main": [
+        [
+          {
+            "node": "Route Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Action": {
+      "main": [
+        [
+          {
+            "node": "Insert Catalog Line",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Catalog Line",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamma Parse 1st Call": {
+      "main": [
+        [
+          {
+            "node": "Wait Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LlamaParse Job Status1": {
+      "main": [
+        [
+          {
+            "node": "If Parse Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamma Parse 3rd Call": {
+      "main": [
+        [
+          {
+            "node": "Set Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Raw Entry1": {
+      "main": [
+        [
+          {
+            "node": "Insert Raw Entry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Source": {
+      "main": [
+        [
+          {
+            "node": "AI Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "be02d0c81971395717609b69bec1057537ae54d926b602a3992bcf63fd9d8f1f"
+  }
+}
