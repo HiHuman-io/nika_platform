@@ -89,6 +89,20 @@ const CATALOG_FIELDS: FieldDef[] = [
   },
 ];
 
+// Fields the n8n hermes-send workflow pushes to Hermes for every line (its item
+// shape). A blank one makes the send fail at Hermes — e.g. an empty Format — so
+// "Send to Hermes" warns first and lists exactly what's missing per line. Trim
+// this list if Hermes stops requiring one of them.
+const HERMES_REQUIRED_FIELDS = [
+  { key: "artist", label: "Artist" },
+  { key: "title", label: "Title" },
+  { key: "ean", label: "EAN" },
+  { key: "format", label: "Format" },
+  { key: "release_date", label: "Release date" },
+  { key: "calculation_group", label: "Calculation group" },
+  { key: "supplier_code", label: "Supplier code" },
+];
+
 // How many rows we ship to the browser per tab. Filtering/search runs client-side
 // over everything loaded, so this is also the ceiling for "filter across all pages".
 // The migrated Processed catalog can hold tens of thousands of rows — we deliberately
@@ -179,7 +193,10 @@ export default async function CatalogPage() {
       entityLabel="catalog line"
       storageKey={`catalog-${catalog}-v2`}
       bulkApprove={{ label: "Approve", status: "approved" }}
-      selectionAction={{ label: "Send to Hermes" }}
+      selectionAction={{
+        label: "Send to Hermes",
+        requiredFields: HERMES_REQUIRED_FIELDS,
+      }}
       exportFormat="xlsx"
       // Column-for-column with the client's own catalogue workbook — the
       // layout lives in `components/catalog-export.ts`.

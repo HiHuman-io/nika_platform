@@ -247,7 +247,11 @@ export function CatalogTable({
   fields?: FieldDef[];
   idKey?: string;
   entityLabel?: string;
-  selectionAction?: { label: string };
+  selectionAction?: {
+    label: string;
+    /** Fields that must be non-blank before a row can be sent; a warning lists any missing. */
+    requiredFields?: { key: string; label: string }[];
+  };
   /** Bulk action that sets the given status on all selected rows. */
   bulkApprove?: { label: string; status: string };
   storageKey?: string;
@@ -606,14 +610,16 @@ export function CatalogTable({
   const [hermesMessage, setHermesMessage] = React.useState<string | null>(null);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [sending, setSending] = React.useState(false);
-  const onHermes = async () => {
-    if (!selectionAction) return;
-    // Only approved lines that haven't been sent yet — same gate as the
-    // button's enabled state.
-    const ids = selectedRows
-      .filter((r) => r.original.status === "approved" && !r.original.sent_at)
-      .map((r) => r.id);
+  // Set when the user tries to send lines that are missing a Hermes-required
+  // field: a warning dialog lists them, and the complete lines can still go.
+  const [hermesWarn, setHermesWarn] = React.useState<{
+    incomplete: { id: string; label: string; missing: string[] }[];
+    completeIds: string[];
+  } | null>(null);
+
+  const doHermesSend = async (ids: string[]) => {
     if (ids.length === 0) return;
+    setHermesWarn(null);
     setSending(true);
     setActionError(null);
     setHermesMessage(null);
@@ -626,6 +632,39 @@ export function CatalogTable({
     setHermesMessage(`Sent ${ids.length} line(s) to Hermes.`);
     setRowSelection({});
     router.refresh();
+  };
+
+  const onHermes = () => {
+    if (!selectionAction) return;
+    // Only approved lines that haven't been sent yet — same gate as the button.
+    const sendable = selectedRows.filter(
+      (r) => r.original.status === "approved" && !r.original.sent_at,
+    );
+    if (sendable.length === 0) return;
+    // Before pushing, flag anything Hermes requires that's still blank so the
+    // send doesn't fail silently (e.g. an empty Format).
+    const required = selectionAction.requiredFields ?? [];
+    const isBlank = (v: unknown) => v == null || String(v).trim() === "";
+    const incomplete = sendable.flatMap((r) => {
+      const missing = required
+        .filter((f) => isBlank(r.original[f.key]))
+        .map((f) => f.label);
+      if (missing.length === 0) return [];
+      const label =
+        [r.original.artist, r.original.title].filter(Boolean).join(" — ") ||
+        String(r.original.ean ?? "") ||
+        "(untitled line)";
+      return [{ id: r.id, label, missing }];
+    });
+    if (incomplete.length > 0) {
+      const bad = new Set(incomplete.map((i) => i.id));
+      setHermesWarn({
+        incomplete,
+        completeIds: sendable.filter((r) => !bad.has(r.id)).map((r) => r.id),
+      });
+      return;
+    }
+    void doHermesSend(sendable.map((r) => r.id));
   };
 
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -1157,6 +1196,66 @@ export function CatalogTable({
             >
               {deleting ? "Deleting…" : `Delete ${selectedCount}`}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!hermesWarn}
+        onOpenChange={(o) => {
+          if (!sending && !o) setHermesWarn(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Missing data for Hermes</DialogTitle>
+            <DialogDescription>
+              {hermesWarn
+                ? `${hermesWarn.incomplete.length} of the selected line${
+                    hermesWarn.incomplete.length === 1 ? "" : "s"
+                  } ${
+                    hermesWarn.incomplete.length === 1 ? "is" : "are"
+                  } missing fields Hermes requires. Fill them in first, or send only the complete lines.`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[45vh] divide-y divide-border overflow-y-auto rounded-md border border-border">
+            {hermesWarn?.incomplete.map((i) => (
+              <div
+                key={i.id}
+                className="flex items-start justify-between gap-4 px-3 py-2"
+              >
+                <span className="min-w-0 truncate text-sm font-medium text-foreground">
+                  {i.label}
+                </span>
+                <span className="shrink-0 text-right text-sm text-red-600 dark:text-red-400">
+                  {i.missing.join(", ")}
+                </span>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={sending}
+              onClick={() => setHermesWarn(null)}
+            >
+              Cancel
+            </Button>
+            {hermesWarn && hermesWarn.completeIds.length > 0 ? (
+              <Button
+                type="button"
+                disabled={sending}
+                onClick={() => void doHermesSend(hermesWarn.completeIds)}
+              >
+                {sending
+                  ? "Sending…"
+                  : `Send ${hermesWarn.completeIds.length} complete line${
+                      hermesWarn.completeIds.length === 1 ? "" : "s"
+                    }`}
+              </Button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
