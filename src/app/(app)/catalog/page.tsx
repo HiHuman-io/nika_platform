@@ -89,16 +89,16 @@ const CATALOG_FIELDS: FieldDef[] = [
   },
 ];
 
-// Fields the n8n hermes-send workflow pushes to Hermes for every line (its item
-// shape). A blank one makes the send fail at Hermes — e.g. an empty Format — so
-// "Send to Hermes" warns first and lists exactly what's missing per line. Trim
-// this list if Hermes stops requiring one of them.
+// Fields that must be non-blank before a line can be sent to Hermes — a blank one
+// makes the send fail (e.g. an empty Format), so "Send to Hermes" warns first and
+// lists exactly what's missing per line. Edit this list in one place.
+// NOTE: release_date is deliberately NOT required — it may legitimately be a real
+// date, blank, or the TBD/2099 sentinel, all of which Hermes accepts.
 const HERMES_REQUIRED_FIELDS = [
   { key: "artist", label: "Artist" },
   { key: "title", label: "Title" },
   { key: "ean", label: "EAN" },
   { key: "format", label: "Format" },
-  { key: "release_date", label: "Release date" },
   { key: "calculation_group", label: "Calculation group" },
   { key: "supplier_code", label: "Supplier code" },
 ];
