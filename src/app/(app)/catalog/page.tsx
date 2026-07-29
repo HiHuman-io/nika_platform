@@ -87,30 +87,18 @@ const CATALOG_FIELDS: FieldDef[] = [
   },
 ];
 
-export default async function CatalogPage() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("catalog_lines")
-    // Every column except `extra` (jsonb): the table renders a JSON.stringify of
-    // it on every row, which is the one field that genuinely hurt. Everything
-    // else stays available so no column silently disappears from the view.
-    // NB: keep this as ONE string literal — Supabase infers the row type from it,
-    // and a concatenated string degrades to `string` and breaks that inference.
-    // prettier-ignore
-    .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, catalog, extra")
-    // created_at never changes, and `id` breaks ties deterministically. Without
-    // the tiebreaker Postgres may return rows sharing a created_at (a batch from
-    // one extraction) in a different order after any UPDATE, so lines jumped
-    // around when they were approved / edited / sent.
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(500);
+// How many rows we ship to the browser per tab. Filtering/search runs client-side
+// over everything loaded, so this is also the ceiling for "filter across all pages".
+// The migrated Processed catalog can hold tens of thousands of rows — we deliberately
+// do NOT load them all; the true total is shown in the tab label via an exact count.
+const MAX_ROWS = 3000;
 
-  // Derive display-only fields server-side so the client table stays dumb:
-  //  - hermes_sent: the "Hermes" badge (driven by sent_at)
-  //  - exclusion_reason: pulled out of the `extra` jsonb so the reason a line was
-  //    excluded is a plain, readable column (the raw `extra` blob stays too).
-  const rows = (data ?? []).map((r) => {
+// Derive display-only fields server-side so the client table stays dumb:
+//  - hermes_sent: the "Hermes" badge (driven by sent_at)
+//  - exclusion_reason / review_note / late_update: pulled out of the `extra` jsonb so
+//    they read as plain columns (the raw `extra` blob stays too).
+function mapRows(data: Record<string, unknown>[] | null) {
+  return (data ?? []).map((r) => {
     const extra = (r.extra ?? null) as {
       exclusion_reason?: string | null;
       review_note?: string | null;
@@ -127,15 +115,51 @@ export default async function CatalogPage() {
         : null,
     };
   });
+}
 
-  // Two catalogs share one table via the `catalog` column: 'other' for Matrix
-  // Music / I-DI music / Pias Recordings, 'main' for the rest.
-  const mainRows = rows.filter((r) => r.catalog !== "other");
-  const otherRows = rows.filter((r) => r.catalog === "other");
+export default async function CatalogPage() {
+  const supabase = await createClient();
 
-  // Same table for both tabs; only the rows and the new-row catalog default
-  // differ. `catalog` is an editable select, so a line can be moved between them.
-  const renderTable = (catalogRows: typeof rows, catalog: "main" | "other") => (
+  // One query PER TAB. A single fetch ordered by created_at would let the migrated
+  // Processed catalog (imported all at once, so all "newest") push Main/Other out of
+  // the window entirely. `count: "exact"` returns the true total ignoring the 3000
+  // display cap, so the tab labels stay correct even when a tab has more rows than we
+  // show. NB: the select stays ONE inline literal (Supabase infers the row shape from
+  // it) — keep the three identical.
+  const tab = (apply: (q: any) => any) =>
+    apply(
+      supabase
+        .from("catalog_lines")
+        // prettier-ignore
+        .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, catalog, extra", { count: "exact" }),
+    )
+      // created_at never changes and `id` breaks ties deterministically, so rows keep
+      // a stable order across approve / edit / send updates.
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(MAX_ROWS);
+
+  const [mainRes, otherRes, processedRes] = await Promise.all([
+    // Legacy rows may have a null catalog; treat those as Main.
+    tab((q) => q.or("catalog.is.null,catalog.eq.main")),
+    tab((q) => q.eq("catalog", "other")),
+    tab((q) => q.eq("catalog", "processed")),
+  ]);
+
+  const error = mainRes.error || otherRes.error || processedRes.error;
+  const mainRows = mapRows(mainRes.data);
+  const otherRows = mapRows(otherRes.data);
+  const processedRows = mapRows(processedRes.data);
+  const mainCount = mainRes.count ?? mainRows.length;
+  const otherCount = otherRes.count ?? otherRows.length;
+  const processedCount = processedRes.count ?? processedRows.length;
+
+  // Same table for every tab; only the rows and the new-row `catalog` default differ.
+  // `catalog` is an editable select, so a line can be moved between the three.
+  const renderTable = (
+    catalogRows: typeof mainRows,
+    catalog: "main" | "other" | "processed",
+  ) => (
     <CatalogTable
       table="catalog_lines"
       rows={catalogRows}
@@ -146,7 +170,7 @@ export default async function CatalogPage() {
           key: "catalog",
           label: "Catalog",
           type: "select",
-          options: ["main", "other"],
+          options: ["main", "other", "processed"],
           default: catalog,
         },
       ]}
@@ -180,12 +204,14 @@ export default async function CatalogPage() {
       ) : (
         <Tabs
           tabs={[
-            { value: "main", label: `Main Catalog (${mainRows.length})` },
-            { value: "other", label: `Other Catalog (${otherRows.length})` },
+            { value: "main", label: `Main Catalog (${mainCount})` },
+            { value: "other", label: `Other Catalog (${otherCount})` },
+            { value: "processed", label: `Processed Catalog (${processedCount})` },
           ]}
         >
           {renderTable(mainRows, "main")}
           {renderTable(otherRows, "other")}
+          {renderTable(processedRows, "processed")}
         </Tabs>
       )}
     </div>

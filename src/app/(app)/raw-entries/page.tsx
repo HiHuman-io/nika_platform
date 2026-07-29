@@ -11,7 +11,7 @@ export default async function RawEntriesPage() {
     // `id` tiebreaker keeps the order stable across updates (see catalog page).
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
-    .limit(500);
+    .limit(3000);
 
   // The extraction completeness check lives inside the `extracted` jsonb (so a
   // missing DB column can never fail the n8n insert — see Build Raw Entry1). Hoist
