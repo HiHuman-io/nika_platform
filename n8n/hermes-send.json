@@ -45,18 +45,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "language": "javaScript",
-        "jsCode": "// Collect all lines into a single { items:[...] } batch for one POST, keeping a\n// parallel meta list so we can mark the right lines as sent afterwards.\nconst all = $input.all();\nreturn [{ json: {\n  items: all.map(i => i.json.item),\n  meta: all.map(i => ({ line_id: i.json._line_id, ean: i.json._ean })),\n} }];"
-      },
-      "id": "code-aggregate",
-      "name": "Aggregate",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [660, 400]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "={{ $env.HERMES_BASE_URL }}/api/productsCatalogue",
         "sendHeaders": true,
@@ -67,7 +55,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ items: $json.items }) }}",
+        "jsonBody": "={{ JSON.stringify({ items: [$json.item] }) }}",
         "options": {}
       },
       "id": "http-hermes-post",
@@ -75,13 +63,13 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [880, 400],
-      "notes": "POST /api/productsCatalogue { items:[...] }. 200 ok / 401 bad token / 422 processing error {msg,error}. Inserts new EANs; existing EANs are ignored by Hermes."
+      "notes": "POST /api/productsCatalogue { items:[ONE item] } — sent ONE PER LINE, not batched: Hermes rejects a WHOLE batch (status 0, 'one or more items were not processed') if ANY item's EAN already exists, which blocks the NEW items too. One request per item isolates them: an existing EAN -> status 0 (skipped, fine), a new EAN -> status 1 with a MblaID. Existing EANs are ignored / leading-zero-normalised by Hermes."
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Map Sent — write the Hermes MblaID back into Supabase as hermes_id.\n//\n// Hermes /api/productsCatalogue response (confirmed from live sends) is an array\n// with one object: { message, return_description, return_value, status }.\n//   * Inserted (status 1): return_value is a JSON *string* array of\n//       [{ EAN: '075678581540', MblaID: 70463 }, ...]  <- the id we want.\n//   * Already-existing (status 0): return_value is pipe-delimited text\n//       ('Item with EAN = ... already exists ... Skipping insertion.') with NO\n//       MblaID — those rows keep whatever hermes_id they already had.\n// Mixed batches can contain both, so we capture every MblaID we can parse and\n// fall back to the line's current hermes_id when Hermes returned none (so we\n// never clobber an id, e.g. on historical rows already known to Hermes).\n\n// 1) Gather the response object(s) however n8n surfaced the top-level array.\nconst responses = [];\nfor (const it of $('Hermes POST Catalogue').all()) {\n  const j = it.json;\n  if (Array.isArray(j)) responses.push(...j);\n  else if (j && Array.isArray(j.body)) responses.push(...j.body);\n  else if (j) responses.push(j);\n}\n\n// 2) Build EAN -> MblaID from every parseable JSON return_value.\nconst normEan = v => String(v ?? '').replace(/[^0-9]/g, '').replace(/^0+/, '');\nconst idByEan = new Map();\nfor (const r of responses) {\n  let rv = r && r.return_value;\n  if (rv == null) continue;\n  if (typeof rv === 'string') {\n    const s = rv.trim();\n    if (!(s.startsWith('[') || s.startsWith('{'))) continue; // plain-text skips\n    try { rv = JSON.parse(s); } catch (e) { continue; }\n  }\n  for (const row of (Array.isArray(rv) ? rv : [rv])) {\n    const ean = row && (row.EAN ?? row.ean);\n    const id  = row && (row.MblaID ?? row.mblaId ?? row.mbla_id ?? row.id);\n    if (ean != null && id != null) idByEan.set(normEan(ean), String(id));\n  }\n}\n\n// 3) Current hermes_id per line, straight from the webhook payload (select * ).\nconst existingById = new Map(\n  ($('Webhook').first().json.body?.lines ?? []).map(l => [String(l.id), l.hermes_id ?? null])\n);\n\n// 4) One row per submitted line for the writeback.\nconst meta = $('Aggregate').first().json.meta ?? [];\nreturn meta.map(m => ({ json: {\n  id: m.line_id,\n  hermes_id: idByEan.get(normEan(m.ean)) ?? existingById.get(String(m.line_id)) ?? null,\n} }));"
+        "jsCode": "// Map Sent — write the Hermes MblaID back into Supabase as hermes_id.\n//\n// Hermes /api/productsCatalogue response (confirmed from live sends) is an array\n// with one object: { message, return_description, return_value, status }.\n//   * Inserted (status 1): return_value is a JSON *string* array of\n//       [{ EAN: '075678581540', MblaID: 70463 }, ...]  <- the id we want.\n//   * Already-existing (status 0): return_value is pipe-delimited text\n//       ('Item with EAN = ... already exists ... Skipping insertion.') with NO\n//       MblaID — those rows keep whatever hermes_id they already had.\n// Mixed batches can contain both, so we capture every MblaID we can parse and\n// fall back to the line's current hermes_id when Hermes returned none (so we\n// never clobber an id, e.g. on historical rows already known to Hermes).\n\n// 1) Gather the response object(s) however n8n surfaced the top-level array.\nconst responses = [];\nfor (const it of $('Hermes POST Catalogue').all()) {\n  const j = it.json;\n  if (Array.isArray(j)) responses.push(...j);\n  else if (j && Array.isArray(j.body)) responses.push(...j.body);\n  else if (j) responses.push(j);\n}\n\n// 2) Build EAN -> MblaID from every parseable JSON return_value.\nconst normEan = v => String(v ?? '').replace(/[^0-9]/g, '').replace(/^0+/, '');\nconst idByEan = new Map();\nfor (const r of responses) {\n  let rv = r && r.return_value;\n  if (rv == null) continue;\n  if (typeof rv === 'string') {\n    const s = rv.trim();\n    if (!(s.startsWith('[') || s.startsWith('{'))) continue; // plain-text skips\n    try { rv = JSON.parse(s); } catch (e) { continue; }\n  }\n  for (const row of (Array.isArray(rv) ? rv : [rv])) {\n    const ean = row && (row.EAN ?? row.ean);\n    const id  = row && (row.MblaID ?? row.mblaId ?? row.mbla_id ?? row.id);\n    if (ean != null && id != null) idByEan.set(normEan(ean), String(id));\n  }\n}\n\n// 3) Current hermes_id per line, straight from the webhook payload (select * ).\nconst existingById = new Map(\n  ($('Webhook').first().json.body?.lines ?? []).map(l => [String(l.id), l.hermes_id ?? null])\n);\n\n// 4) One row per submitted line for the writeback.\nconst meta = $('Prepare Items').all().map(i => ({ line_id: i.json._line_id, ean: i.json._ean }));\nreturn meta.map(m => ({ json: {\n  id: m.line_id,\n  hermes_id: idByEan.get(normEan(m.ean)) ?? existingById.get(String(m.line_id)) ?? null,\n} }));"
       },
       "id": "code-map-sent",
       "name": "Map Sent",
@@ -119,8 +107,7 @@
   "connections": {
     "Webhook": { "main": [[{ "node": "Hermes Authenticate", "type": "main", "index": 0 }]] },
     "Hermes Authenticate": { "main": [[{ "node": "Prepare Items", "type": "main", "index": 0 }]] },
-    "Prepare Items": { "main": [[{ "node": "Aggregate", "type": "main", "index": 0 }]] },
-    "Aggregate": { "main": [[{ "node": "Hermes POST Catalogue", "type": "main", "index": 0 }]] },
+    "Prepare Items": { "main": [[{ "node": "Hermes POST Catalogue", "type": "main", "index": 0 }]] },
     "Hermes POST Catalogue": { "main": [[{ "node": "Map Sent", "type": "main", "index": 0 }]] },
     "Map Sent": { "main": [[{ "node": "Mark Sent", "type": "main", "index": 0 }]] }
   },
