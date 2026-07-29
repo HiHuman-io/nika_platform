@@ -32,12 +32,20 @@ select
 from public.catalog_import_staging
 on conflict (code) where (code is not null and code <> '') do nothing;
 
--- STEP 4 — check: how many landed, and how many were skipped as already-present:
+-- STEP 4 — check: how many landed, how many were skipped as already-present, and PROVE
+-- the leading zeros survived (leading_zero_eans should be ~17949; sample shows real EANs):
 select
   (select count(*) from public.catalog_lines where catalog = 'processed') as processed_now,
   (select count(*) from public.catalog_import_staging)                     as staged,
   (select count(*) from public.catalog_import_staging) -
-  (select count(*) from public.catalog_lines where catalog = 'processed')  as skipped_as_existing;
+  (select count(*) from public.catalog_lines where catalog = 'processed')  as skipped_as_existing,
+  (select count(*) from public.catalog_lines where catalog = 'processed' and ean like '0%') as leading_zero_eans;
+
+-- proof sample — these EANs and Hermes IDs must still start with 0:
+select ean, hermes_id, artist, title
+from public.catalog_lines
+where catalog = 'processed' and ean like '0%'
+limit 5;
 
 -- STEP 5 — clean up:
 drop table public.catalog_import_staging;

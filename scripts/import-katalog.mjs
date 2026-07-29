@@ -57,8 +57,16 @@ for (const r of rows) {
   });
 }
 
-const esc = (v) => { if (v == null) return ''; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-fs.writeFileSync(OUT, [OUT_COLS.join(',')].concat(out.map((r) => OUT_COLS.map((c) => esc(r[c])).join(','))).join('\n') + '\n');
+// Force-quote the identifier columns so their leading zeros survive every CSV parser
+// (the DB staging columns are text too — belt and suspenders).
+const FORCE_QUOTE = new Set(['ean', 'code', 'catalogue_no', 'hermes_id']);
+const esc = (v, col) => {
+  if (v == null || v === '') return '';
+  const s = String(v);
+  if (FORCE_QUOTE.has(col)) return '"' + s.replace(/"/g, '""') + '"';
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+};
+fs.writeFileSync(OUT, [OUT_COLS.join(',')].concat(out.map((r) => OUT_COLS.map((c) => esc(r[c], c)).join(','))).join('\n') + '\n');
 
 console.log('xlsx data rows :', rows.length);
 console.log('dropped "D"    :', droppedD);
