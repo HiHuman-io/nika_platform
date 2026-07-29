@@ -24,11 +24,12 @@ insert into public.catalog_lines
   (ean, code, catalogue_no, artist, title, format, unit, label, release_date,
    cop, ppd, our_price, supplier_code, calculation_group, hermes_id, catalog, status, sent_at)
 select
-  nullif(ean,''), nullif(code,''), nullif(catalogue_no,''), nullif(artist,''), nullif(title,''),
+  nullif(regexp_replace(coalesce(ean,''), '[^0-9]', '', 'g'), ''),   -- digits only, leading zeros kept
+  nullif(code,''), nullif(catalogue_no,''), nullif(artist,''), nullif(title,''),
   nullif(format,''), nullif(unit,'')::int, nullif(label,''), nullif(release_date,'')::date,
   nullif(cop,'')::numeric, nullif(ppd,''), nullif(our_price,'')::numeric,
   nullif(supplier_code,''), nullif(calculation_group,''), nullif(hermes_id,''),
-  catalog, status, nullif(sent_at,'')::timestamptz
+  catalog, status::public.catalog_status, nullif(sent_at,'')::timestamptz
 from public.catalog_import_staging
 on conflict (code) where (code is not null and code <> '') do nothing;
 
