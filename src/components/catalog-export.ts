@@ -72,7 +72,15 @@ export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
   { key: "label" },
   { key: "code" },
   { key: "catalogue_no" },
-  { key: "release_date", value: (r) => formatDmy(r.release_date) },
+  // The 2099 sentinel (Warner group, unannounced date) exports as "TBD"; non-Warner
+  // missing dates are blank. Hermes still gets the ISO 2099-12-31 from the workflow.
+  {
+    key: "release_date",
+    value: (r) =>
+      String(r.release_date ?? "").slice(0, 10) === "2099-12-31"
+        ? "TBD"
+        : formatDmy(r.release_date),
+  },
   { key: "our_price", type: "number", format: "0.00", value: (r) => num(r.our_price) },
   {
     key: "our_price_95",

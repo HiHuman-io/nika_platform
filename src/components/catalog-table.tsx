@@ -208,6 +208,10 @@ function CatalogCell({
     return <span className="font-mono">{String(value)}</span>;
   }
   if (variant === "date" && typeof value === "string") {
+    // The far-future sentinel (2099-12-31) is an unannounced "to be determined" date for
+    // the Warner group — show it as TBD. Storage stays ISO (Hermes still receives
+    // 31.12.2099); non-Warner missing dates are stored blank and show as "—".
+    if (value.slice(0, 10) === "2099-12-31") return <span className="text-muted">TBD</span>;
     // Same DD.MM.YYYY the client's catalogue and our export use (2026-07-04 ->
     // 04.07.2026). Storage stays ISO — Hermes and date sorting rely on it — so
     // this is display-only.
