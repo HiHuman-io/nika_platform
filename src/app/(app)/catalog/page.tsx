@@ -42,13 +42,15 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "source_status", label: "Source status", size: 120 },
   { key: "currency", label: "Orig. cur.", size: 70 },
   { key: "price_original", label: "Orig. price", size: 95 },
+  // Hermes ID shown by default, immediately to the right of Orig. price (client, 2026-07).
+  { key: "hermes_id", label: "Hermes ID", size: 130 },
   { key: "price_secondary", label: "Price 2nd", variant: "number", size: 95, hidden: true },
   { key: "catalog", label: "Catalog", size: 90, hidden: true },
   { key: "approved_by", label: "Approved by", size: 150, hidden: true },
   { key: "notes", label: "Notes", size: 200, hidden: true },
   { key: "extra", label: "Extra", size: 220, hidden: true },
-  // Hidden, but declared so the xlsx export gets a clean "Hermes ID" header.
-  { key: "hermes_id", label: "Hermes ID", size: 130, hidden: true },
+  // Thread ID is available in the "Columns" chooser but hidden by default (client, 2026-07).
+  { key: "thread_id", label: "Thread ID", variant: "code", size: 150, hidden: true },
   { key: "id", label: "ID", size: 80, hidden: true },
   { key: "ruleset_version", label: "Ruleset version", size: 120, hidden: true },
   { key: "missing_fields", label: "Missing fields", size: 150, hidden: true },

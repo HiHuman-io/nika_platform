@@ -43,7 +43,10 @@ function num(value: unknown): number | null {
 /** ISO date -> DD.MM.YYYY, the format used throughout the client's catalogue. */
 export function formatDmy(value: unknown): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ""));
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : null;
+  // Day/month without leading zeros, per the client: 2026-10-02 -> 2.10.2026 (not
+  // 02.10.2026). Used by both the on-screen catalog and the xlsx/csv export. Storage
+  // stays ISO and Hermes still receives ISO, so this is display-only.
+  return m ? `${+m[3]}.${+m[2]}.${m[1]}` : null;
 }
 
 /**
