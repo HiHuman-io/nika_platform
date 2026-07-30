@@ -28,6 +28,28 @@ function isAllowed(table: string): table is TableName {
   return Object.prototype.hasOwnProperty.call(TABLE_ROUTES, table);
 }
 
+/**
+ * Artist and title are always stored ALL CAPS — the extraction workflow already
+ * uppercases everything it writes, so a row typed or edited by hand in the app was
+ * the one way mixed case could still get in ("180g" instead of "180G", "14th"
+ * instead of "14TH"). Normalising here covers every write path (add row, edit
+ * dialog, inline cell edit) because they all funnel through these actions.
+ */
+const UPPERCASE_FIELDS = ["artist", "title"] as const;
+
+function normalizeValues(
+  table: string,
+  values: Record<string, unknown>,
+): Record<string, unknown> {
+  if (table !== "catalog_lines") return values;
+  const out = { ...values };
+  for (const key of UPPERCASE_FIELDS) {
+    const v = out[key];
+    if (typeof v === "string") out[key] = v.toUpperCase();
+  }
+  return out;
+}
+
 export async function insertRow(
   table: string,
   values: Record<string, unknown>,
@@ -35,7 +57,7 @@ export async function insertRow(
   if (!isAllowed(table)) return { error: `Table "${table}" is not editable.` };
 
   const supabase = await createClient();
-  const { error } = await supabase.from(table).insert(values);
+  const { error } = await supabase.from(table).insert(normalizeValues(table, values));
   if (error) return { error: error.message };
 
   revalidatePath(TABLE_ROUTES[table]);
@@ -50,7 +72,10 @@ export async function updateRow(
   if (!isAllowed(table)) return { error: `Table "${table}" is not editable.` };
 
   const supabase = await createClient();
-  const { error } = await supabase.from(table).update(values).eq("id", id);
+  const { error } = await supabase
+    .from(table)
+    .update(normalizeValues(table, values))
+    .eq("id", id);
   if (error) return { error: error.message };
 
   revalidatePath(TABLE_ROUTES[table]);
