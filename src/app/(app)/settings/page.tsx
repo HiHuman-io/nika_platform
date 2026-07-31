@@ -39,6 +39,15 @@ const SETTINGS_TABLES = [
     helper: "Free-text quirks for a label.",
     example: 'Warner → “prices arrive in a separate follow-up email”',
   },
+  {
+    table: "blocked_emails",
+    title: "Emails to Block",
+    entity: "block rule",
+    helper:
+      "Mail that never enters the catalog. Fill in either column or both: sender only blocks everything from them, keyword only blocks that subject from anyone, both blocks just the combination. A sender can be a full address, a whole @domain, or the part left of the @; end a keyword with * to match anything starting with it.",
+    example:
+      'customerservice → all of them · order form → from anyone · andreea.neumeister@komab.at + pre-order → only that pair',
+  },
 ] as const;
 
 export default function SettingsPage() {

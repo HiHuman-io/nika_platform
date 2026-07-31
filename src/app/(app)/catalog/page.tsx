@@ -31,6 +31,10 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "late_update", label: "Late update", size: 240, hidden: true },
   { key: "calculation_group", label: "Calculation group", size: 130 },
   { key: "supplier_code", label: "Supplier code", size: 110 },
+  // Where the line came from: sender address + when they sent it, e.g.
+  // "promo@elektra.com — 31.07.2026 10:43". Written by the workflow from v30 on;
+  // blank on everything older (deliberately not backfilled — client, 2026-07-31).
+  { key: "source_email", label: "Source email", size: 210 },
   // Price block: Rock Bottom -> COP -> PPD -> Our price.
   { key: "rock_bottom", label: "Rock Bottom €", variant: "number", size: 115 },
   { key: "cop", label: "COP €", variant: "number", size: 80 },
@@ -57,6 +61,11 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "confidence", label: "Confidence", variant: "number", size: 100, hidden: true },
 ];
 
+// Edit-dialog order, requested by the client (2026-07-31): the fields they actually
+// touch when fixing a line come first — artist, title, format, unit, genre, label,
+// calculation group, supplier code, EAN, release date — and everything else keeps the
+// order it already had underneath. `source_email` is deliberately absent: it is
+// provenance written by the workflow, not something to type over.
 const CATALOG_FIELDS: FieldDef[] = [
   { key: "artist", label: "Artist", type: "text", required: true },
   { key: "title", label: "Title", type: "text", required: true },
@@ -64,10 +73,14 @@ const CATALOG_FIELDS: FieldDef[] = [
   { key: "unit", label: "Unit", type: "number" },
   { key: "genre", label: "Genre", type: "text" },
   { key: "label", label: "Label", type: "text" },
+  { key: "calculation_group", label: "Calculation group", type: "text" },
+  // Defaults to 149 (Warner) on new/empty rows, per the client.
+  { key: "supplier_code", label: "Supplier code", type: "text", default: "149" },
   { key: "ean", label: "EAN", type: "text" },
+  { key: "release_date", label: "Release date", type: "date" },
+  // The rest, in the order they already had.
   { key: "code", label: "Code", type: "text" },
   { key: "catalogue_no", label: "Catalogue no", type: "text" },
-  { key: "release_date", label: "Release date", type: "date" },
   { key: "rock_bottom", label: "Rock Bottom (€)", type: "number" },
   { key: "currency", label: "Original currency", type: "text" },
   { key: "price_original", label: "Original price", type: "text" },
@@ -76,9 +89,6 @@ const CATALOG_FIELDS: FieldDef[] = [
   { key: "ppd", label: "PPD (€) — merged, e.g. 30,5/24,25", type: "text" },
   { key: "our_price", label: "Our price (€)", type: "number" },
   { key: "source_status", label: "Source status", type: "text" },
-  { key: "calculation_group", label: "Calculation group", type: "text" },
-  // Defaults to 149 (Warner) on new/empty rows, per the client.
-  { key: "supplier_code", label: "Supplier code", type: "text", default: "149" },
   {
     key: "status",
     label: "Status",
