@@ -28,6 +28,11 @@ const STATUS_STYLES: Record<string, string> = {
     "border-red-200 bg-red-50 text-red-700 dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-300",
   ignored:
     "border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-500/30 dark:bg-zinc-500/10 dark:text-zinc-300",
+  // raw_entries only: mail an "Emails to Block" rule stopped before it ever reached
+  // LlamaParse or the AI. Deliberately not red — nothing went wrong, the rule did its job;
+  // it stands out so a rule that fires on real supplier mail is easy to spot.
+  blocked:
+    "border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-400/25 dark:bg-orange-400/10 dark:text-orange-300",
 };
 
 export const HIDE_CLASS: Record<NonNullable<ColumnDef["hideBelow"]>, string> = {
