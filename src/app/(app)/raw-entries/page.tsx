@@ -1,7 +1,28 @@
 import { createClient } from "@/utils/supabase/server";
-import { CatalogTable } from "@/components/catalog-table";
+import {
+  CatalogTable,
+  type CatalogColumnSpec,
+} from "@/components/catalog-table";
 
 export const metadata = { title: "Raw Entries · Nika" };
+
+// Column order requested by the client (2026-07-31). This is the WHOLE visible set —
+// `hideUnspecified` starts every other column of the table hidden, so anything the
+// workflow or a migration adds later shows up in the "Columns" chooser rather than
+// widening the table on its own.
+// NOTE: `extraction_audit` is deliberately among the hidden ones now, at the client's
+// request. It was the alarm column for "the AI returned fewer items than the source
+// printed", so that signal is one click away in "Columns" instead of on screen.
+const RAW_ENTRY_COLUMNS: CatalogColumnSpec[] = [
+  { key: "received_at", label: "Received at", variant: "date", size: 120 },
+  { key: "status", label: "Status", variant: "status", size: 100 },
+  { key: "sender", label: "Sender", size: 200 },
+  { key: "label", label: "Label", size: 130 },
+  { key: "subject", label: "Subject", size: 300 },
+  { key: "source_email_id", label: "Source email ID", variant: "code", size: 150 },
+  { key: "extracted", label: "Extracted", size: 320 },
+  { key: "confidence", label: "Confidence", variant: "number", size: 100 },
+];
 
 export default async function RawEntriesPage() {
   const supabase = await createClient();
@@ -43,16 +64,21 @@ export default async function RawEntriesPage() {
         <CatalogTable
           table="raw_entries"
           rows={rows}
-          columns={[]}
+          columns={RAW_ENTRY_COLUMNS}
+          hideUnspecified
           fields={[]}
           entityLabel="raw entry"
-          storageKey="raw-entries-table"
+          // Bumped with the new layout: widths, visibility and order are remembered
+          // per storageKey in localStorage and are merged OVER the defaults, so a
+          // browser that had already opened this page would otherwise keep showing
+          // the old columns for ever.
+          storageKey="raw-entries-table-v2"
           canAdd={false}
           canEdit={false}
           canDelete={false}
           markIgnored
           searchPlaceholder="Search raw entries…"
-          pinColumns={["extraction_audit"]}
+          pinColumns={["received_at"]}
         />
       )}
     </div>

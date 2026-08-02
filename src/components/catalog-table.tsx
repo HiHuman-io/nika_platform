@@ -238,6 +238,7 @@ export function CatalogTable({
   addLabel = "Add row",
   searchPlaceholder = "Search catalog…",
   pinColumns = ["artist", "title"],
+  hideUnspecified = false,
   exportPreset,
   exportFormat = "csv",
 }: {
@@ -262,6 +263,13 @@ export function CatalogTable({
   addLabel?: string;
   searchPlaceholder?: string;
   pinColumns?: string[];
+  /**
+   * Treat `columns` as the whole visible set: any key present in the data but not
+   * named there starts hidden instead of visible. For a page that wants an exact
+   * layout without having to enumerate every column the table happens to have.
+   * The hidden ones remain in the "Columns" chooser.
+   */
+  hideUnspecified?: boolean;
   /**
    * Named export layout (see `catalog-export.ts`) used verbatim, regardless of
    * what's visible on screen. It can add derived, repeated and computed columns
@@ -317,16 +325,18 @@ export function CatalogTable({
             key: k,
             label: k.replace(/_/g, " "),
             variant: inferVariant(k, rows),
+            // NB: an inferred column is VISIBLE by default and must stay that way.
+            // Callers like SupabaseEditableTable pass columns={[]} and rely entirely
+            // on this inference — hiding them by default blanks the table out.
+            // A page that wants "these columns and nothing else" opts in with
+            // hideUnspecified; the rest stay in the "Columns" chooser, one click away.
+            hidden: hideUnspecified || undefined,
           });
-          // NB: these must stay VISIBLE. Callers like SupabaseEditableTable pass
-          // columns={[]} and rely entirely on this inference — hiding them here
-          // blanks out the Settings / Import / Raw Entries tables. Trim what a
-          // page fetches in its query instead.
         }
       }
     }
     return [...specs, ...extras];
-  }, [specs, rows]);
+  }, [specs, rows, hideUnspecified]);
 
   // Live search + per-column filters narrow rows before the table sees them.
   const [query, setQuery] = React.useState("");

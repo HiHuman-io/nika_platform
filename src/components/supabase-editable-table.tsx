@@ -1,6 +1,15 @@
 import { createClient } from "@/utils/supabase/server";
-import { CatalogTable } from "./catalog-table";
+import { CatalogTable, type CatalogColumnSpec } from "./catalog-table";
 import { type FieldDef } from "./row-form";
+
+// `id` is a uuid primary key — a backend join key that means nothing to the person
+// maintaining these rules, so it starts hidden on every settings tab (client,
+// 2026-07-31). Listed rather than dropped: it stays available in "Columns" for the
+// rare moment someone needs to quote a row to support. Every other column is still
+// inferred from the data and visible, which is what these generic tables rely on.
+const HIDE_ID: CatalogColumnSpec[] = [
+  { key: "id", label: "ID", size: 80, hidden: true },
+];
 
 /**
  * Server component: fetches a table (read-only here; writes happen via server
@@ -57,7 +66,7 @@ export async function SupabaseEditableTable({
     <CatalogTable
       table={table}
       rows={data ?? []}
-      columns={[]}
+      columns={HIDE_ID}
       fields={fields}
       idKey={idKey}
       canAdd={canAdd}
@@ -68,7 +77,10 @@ export async function SupabaseEditableTable({
       entityLabel={entityLabel}
       addLabel={addLabel}
       selectionAction={selectionAction}
-      storageKey={`${table}-table`}
+      // Bumped when `id` was hidden: column visibility is remembered per storageKey
+      // in localStorage and merged OVER the defaults, so a browser that had already
+      // opened Settings would otherwise keep showing the ID column for ever.
+      storageKey={`${table}-table-v2`}
       pinColumns={[]}
     />
   );
