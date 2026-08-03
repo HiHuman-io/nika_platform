@@ -61,6 +61,37 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "confidence", label: "Confidence", variant: "number", size: 100, hidden: true },
 ];
 
+// The columns fetched for every tab. Kept as ONE literal because Supabase infers the row
+// shape from it.
+// prettier-ignore
+const CATALOG_SELECT = "id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, calculation_group, supplier_code, source_email, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, catalog, extra";
+
+// Columns the table shows that are DERIVED in mapRows rather than stored, so they are the
+// only ones allowed to be absent from the select.
+const DERIVED_COLUMNS = new Set([
+  "hermes_sent",
+  "exclusion_reason",
+  "review_note",
+  "late_update",
+]);
+
+// A column listed in CATALOG_COLUMNS but missing from CATALOG_SELECT renders a header with
+// every cell empty — it looks exactly like the workflow failing to write the field, which
+// is how `source_email` was read when it was added (client, 2026-08-03). The two lists are
+// maintained by hand, so they get checked here instead of by eye.
+{
+  const fetched = new Set(CATALOG_SELECT.split(",").map((c) => c.trim()));
+  const missing = CATALOG_COLUMNS.map((c) => c.key).filter(
+    (k) => !fetched.has(k) && !DERIVED_COLUMNS.has(k),
+  );
+  if (missing.length) {
+    throw new Error(
+      `catalog/page.tsx: these columns are displayed but never fetched — add them to ` +
+        `CATALOG_SELECT or to DERIVED_COLUMNS: ${missing.join(", ")}`,
+    );
+  }
+}
+
 // Edit-dialog order, requested by the client (2026-07-31): the fields they actually
 // touch when fixing a line come first — artist, title, format, unit, genre, label,
 // calculation group, supplier code, EAN, release date — and everything else keeps the
@@ -150,14 +181,14 @@ export default async function CatalogPage() {
   // Processed catalog (imported all at once, so all "newest") push Main/Other out of
   // the window entirely. `count: "exact"` returns the true total ignoring the 3000
   // display cap, so the tab labels stay correct even when a tab has more rows than we
-  // show. NB: the select stays ONE inline literal (Supabase infers the row shape from
-  // it) — keep the three identical.
+  // show. NB: the select stays ONE literal (Supabase infers the row shape from it) —
+  // see CATALOG_SELECT above, which is checked against CATALOG_COLUMNS.
   const tab = (apply: (q: any) => any) =>
     apply(
       supabase
         .from("catalog_lines")
         // prettier-ignore
-        .select("id, artist, title, status, format, unit, label, genre, ean, code, catalogue_no, release_date, rock_bottom, cop, ppd, our_price, currency, price_original, price_secondary, source_status, calculation_group, supplier_code, ruleset_version, missing_fields, confidence, notes, thread_id, hermes_id, approved_at, approved_by, sent_at, created_at, updated_at, catalog, extra", { count: "exact" }),
+        .select(CATALOG_SELECT, { count: "exact" }),
     )
       // created_at never changes and `id` breaks ties deterministically, so rows keep
       // a stable order across approve / edit / send updates.
