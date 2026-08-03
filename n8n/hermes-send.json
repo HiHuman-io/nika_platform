@@ -12,7 +12,10 @@
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 400],
+      "position": [
+        0,
+        400
+      ],
       "webhookId": "a7f1c0de-6b2e-4c11-9c8a-hermes-send01"
     },
     {
@@ -28,20 +31,26 @@
       "name": "Hermes Authenticate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 400],
+      "position": [
+        220,
+        400
+      ],
       "notes": "POST /api/authenticate {username,password} -> { access_token }. Creds from n8n ENV (HERMES_BASE_URL / HERMES_USERNAME / HERMES_PASSWORD)."
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Map each selected catalog_line (sent by the app in the webhook body) to the\n// Hermes item shape. Hermes inserts by EAN: a NEW ean is created, an EXISTING\n// ean is ignored (no update, no duplicate) — so we just send everything selected.\n// Field mapping is the confirmed one.\n//\n// EAN: the catalog stores a 13-digit EAN, but Hermes wants the barcode WITHOUT the\n// catalog's leading zero — a 13-digit EAN starting with 0 is sent as 12 digits\n// (0075678581519 -> 075678581519). Only the first zero is dropped; a non-zero 13-digit\n// EAN or an already-12-digit one is sent unchanged (Hermes accepts 12 or 13).\nconst hermesEan = (v) => {\n  const s = String(v ?? '').replace(/[^0-9]/g, '');\n  if (!s) return null;\n  return (s.length === 13 && s[0] === '0') ? s.slice(1) : s;\n};\nconst lines = $('Webhook').first().json.body?.lines ?? [];\nreturn lines.map(l => ({ json: {\n  _line_id: l.id,\n  _ean: l.ean ?? null,\n  item: {\n    title: l.title ?? null,\n    author: l.artist ?? null,\n    releaseDate: l.release_date ?? null,\n    format: l.format ?? null,\n    ean: hermesEan(l.ean),\n    calculationGroup: l.calculation_group ?? null,\n    supplierCode: l.supplier_code ?? null,\n  },\n} }));"
+        "jsCode": "// Map the selected catalog_lines (sent by the app in the webhook body) to the Hermes item\n// shape and hand them over as ONE payload — one request for the whole selection, the way\n// it worked before f03db96 (client, 2026-07-31).\n//\n// Returning a SINGLE n8n item is what makes the HTTP node fire exactly once: n8n runs an\n// HTTP node once per input item, so one item in = one POST out.\n//\n// EAN: the catalog stores a 13-digit EAN, but Hermes wants the barcode WITHOUT the\n// catalog's leading zero — a 13-digit EAN starting with 0 is sent as 12 digits\n// (0075678581519 -> 075678581519). Only the first zero is dropped; a non-zero 13-digit EAN\n// or an already-12-digit one is sent unchanged (Hermes accepts 12 or 13).\nconst hermesEan = (v) => {\n  const s = String(v ?? '').replace(/[^0-9]/g, '');\n  if (!s) return null;\n  return (s.length === 13 && s[0] === '0') ? s.slice(1) : s;\n};\n\nconst lines = $('Webhook').first().json.body?.lines ?? [];\n\nreturn [{ json: {\n  items: lines.map(l => ({\n    title: l.title ?? null,\n    author: l.artist ?? null,\n    releaseDate: l.release_date ?? null,\n    format: l.format ?? null,\n    ean: hermesEan(l.ean),\n    calculationGroup: l.calculation_group ?? null,\n    supplierCode: l.supplier_code ?? null,\n  })),\n  // Carried alongside the payload so Map Sent can tie a response row back to a catalog\n  // line. Kept in the SAME ORDER as items.\n  meta: lines.map(l => ({ line_id: l.id, ean: l.ean ?? null })),\n} }];"
       },
       "id": "code-prepare-items",
       "name": "Prepare Items",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [440, 400]
+      "position": [
+        440,
+        400
+      ]
     },
     {
       "parameters": {
@@ -50,32 +59,41 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "Authorization", "value": "=Bearer {{ $('Hermes Authenticate').first().json.access_token }}" }
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Hermes Authenticate').first().json.access_token }}"
+            }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ items: [$json.item] }) }}",
+        "jsonBody": "={{ JSON.stringify({ items: $json.items }) }}",
         "options": {}
       },
       "id": "http-hermes-post",
       "name": "Hermes POST Catalogue",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 400],
-      "notes": "POST /api/productsCatalogue { items:[ONE item] } — sent ONE PER LINE, not batched: Hermes rejects a WHOLE batch (status 0, 'one or more items were not processed') if ANY item's EAN already exists, which blocks the NEW items too. One request per item isolates them: an existing EAN -> status 0 (skipped, fine), a new EAN -> status 1 with a MblaID. Existing EANs are ignored / leading-zero-normalised by Hermes."
+      "position": [
+        880,
+        400
+      ],
+      "notes": "POST /api/productsCatalogue { items:[...] } — ONE request for the whole selection. 200 ok / 401 bad token / 422 processing error {msg,error}. Inserts new EANs; existing EANs are reported as skipped. NB the endpoint is all-or-nothing: a batch holding an existing EAN can come back status 0 with the new items NOT inserted, so Map Sent marks sent only what Hermes confirmed."
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Map Sent — write the Hermes MblaID back into Supabase as hermes_id.\n//\n// Hermes /api/productsCatalogue response (confirmed from live sends) is an array\n// with one object: { message, return_description, return_value, status }.\n//   * Inserted (status 1): return_value is a JSON *string* array of\n//       [{ EAN: '075678581540', MblaID: 70463 }, ...]  <- the id we want.\n//   * Already-existing (status 0): return_value is pipe-delimited text\n//       ('Item with EAN = ... already exists ... Skipping insertion.') with NO\n//       MblaID — those rows keep whatever hermes_id they already had.\n// Mixed batches can contain both, so we capture every MblaID we can parse and\n// fall back to the line's current hermes_id when Hermes returned none (so we\n// never clobber an id, e.g. on historical rows already known to Hermes).\n\n// 1) Gather the response object(s) however n8n surfaced the top-level array.\nconst responses = [];\nfor (const it of $('Hermes POST Catalogue').all()) {\n  const j = it.json;\n  if (Array.isArray(j)) responses.push(...j);\n  else if (j && Array.isArray(j.body)) responses.push(...j.body);\n  else if (j) responses.push(j);\n}\n\n// 2) Build EAN -> MblaID from every parseable JSON return_value.\nconst normEan = v => String(v ?? '').replace(/[^0-9]/g, '').replace(/^0+/, '');\nconst idByEan = new Map();\nfor (const r of responses) {\n  let rv = r && r.return_value;\n  if (rv == null) continue;\n  if (typeof rv === 'string') {\n    const s = rv.trim();\n    if (!(s.startsWith('[') || s.startsWith('{'))) continue; // plain-text skips\n    try { rv = JSON.parse(s); } catch (e) { continue; }\n  }\n  for (const row of (Array.isArray(rv) ? rv : [rv])) {\n    const ean = row && (row.EAN ?? row.ean);\n    const id  = row && (row.MblaID ?? row.mblaId ?? row.mbla_id ?? row.id);\n    // Hermes returns MblaID 0 on single-item inserts (the real id is assigned later, if at all) -> skip it; never store '0'.\n    if (ean != null && id != null && Number(id) !== 0) idByEan.set(normEan(ean), String(id));\n  }\n}\n\n// 3) Current hermes_id per line, straight from the webhook payload (select * ).\nconst existingById = new Map(\n  ($('Webhook').first().json.body?.lines ?? []).map(l => [String(l.id), l.hermes_id ?? null])\n);\n\n// 4) One row per submitted line for the writeback.\nconst meta = $('Prepare Items').all().map(i => ({ line_id: i.json._line_id, ean: i.json._ean }));\nreturn meta.map(m => ({ json: {\n  id: m.line_id,\n  hermes_id: idByEan.get(normEan(m.ean)) ?? existingById.get(String(m.line_id)) ?? null,\n} }));"
+        "jsCode": "// Map Sent — write the Hermes MblaID back as hermes_id, and mark as sent ONLY the lines\n// Hermes actually confirmed.\n//\n// Response (confirmed from live sends) is an array holding one object per request:\n//   { message, return_description, return_value, status }\n//   * status 1 -> the request was processed. return_value is a JSON *string* array of\n//                 [{ EAN: '075678581540', MblaID: 70463 }, ...].\n//   * status 0 -> one or more items were NOT processed. return_value is pipe-delimited\n//                 text that NAMES them (\"Item with EAN = ... already exists ... Skipping\n//                 insertion.\") and carries no MblaID.\n//\n// WHY THIS IS CAREFUL. /api/productsCatalogue is all-or-nothing per request: a batch\n// containing even one already-known EAN comes back status 0, and the genuinely-new items\n// in that same batch are NOT inserted either. That is exactly why f03db96 had split this\n// into one POST per line. Sending one payload again is the client's call, so the guard\n// moves here: a line is marked sent ONLY when Hermes confirmed it — it came back with an\n// MblaID, or it was named as already existing, or the whole request reported status 1.\n// Anything else keeps sent_at null and its empty Hermes badge in the app, so it stays\n// visible and can be re-sent on its own.\n\n// 1) Gather the response object(s) however n8n surfaced the top-level array.\nconst responses = [];\nfor (const it of $('Hermes POST Catalogue').all()) {\n  const j = it.json;\n  if (Array.isArray(j)) responses.push(...j);\n  else if (j && Array.isArray(j.body)) responses.push(...j.body);\n  else if (j) responses.push(j);\n}\n\nconst normEan = v => String(v ?? '').replace(/[^0-9]/g, '').replace(/^0+/, '');\nconst idByEan = new Map();   // EAN -> MblaID (or null when Hermes gave none)\nconst alreadyThere = new Set(); // EANs Hermes reported as existing\nlet requestProcessed = false;   // any response with status 1\n\nfor (const r of responses) {\n  if (!r) continue;\n  if (Number(r.status) === 1) requestProcessed = true;\n\n  let rv = r.return_value;\n  if (rv == null) continue;\n\n  if (typeof rv === 'string') {\n    const s = rv.trim();\n    if (s.startsWith('[') || s.startsWith('{')) {\n      try { rv = JSON.parse(s); } catch (e) { continue; }\n    } else {\n      // Plain text: it names the EANs it skipped because they already exist. Those rows\n      // ARE in Hermes, so they count as confirmed.\n      for (const hit of (s.match(/EAN\\s*=?\\s*'?\\d{8,14}/gi) || [])) {\n        const d = hit.match(/\\d{8,14}/);\n        if (d) alreadyThere.add(normEan(d[0]));\n      }\n      continue;\n    }\n  }\n\n  for (const row of (Array.isArray(rv) ? rv : [rv])) {\n    const ean = row && (row.EAN ?? row.ean);\n    if (ean == null) continue;\n    const id = row && (row.MblaID ?? row.mblaId ?? row.mbla_id ?? row.id);\n    // Hermes has been seen to answer MblaID 0: the row was processed, there is simply no\n    // id to keep. Confirm the line, but never store '0' as a hermes_id.\n    idByEan.set(normEan(ean), (id != null && Number(id) !== 0) ? String(id) : null);\n  }\n}\n\n// 2) Current hermes_id per line, straight from the webhook payload (select *), so an id a\n//    historical row already had is never clobbered. '0' is NOT an id (2fe882a) — some rows\n//    were written with it before that rule existed, so it is treated as absent here too\n//    rather than being carefully preserved.\nconst existingById = new Map(\n  ($('Webhook').first().json.body?.lines ?? []).map(l => {\n    const cur = l.hermes_id == null ? null : String(l.hermes_id);\n    return [String(l.id), (cur === '' || Number(cur) === 0) ? null : cur];\n  })\n);\n\n// 3) One writeback row per CONFIRMED line.\nconst meta = $('Prepare Items').first().json.meta ?? [];\nconst out = [];\nconst unconfirmed = [];\nfor (const m of meta) {\n  const key = normEan(m.ean);\n  const gotId = idByEan.has(key);\n  const confirmed = gotId || alreadyThere.has(key) || requestProcessed;\n  if (!confirmed) { unconfirmed.push(m.ean || m.line_id); continue; }\n  out.push({ json: {\n    id: m.line_id,\n    hermes_id: (gotId ? idByEan.get(key) : null) ?? existingById.get(String(m.line_id)) ?? null,\n  } });\n}\n\nif (unconfirmed.length) {\n  console.log('Hermes did not confirm ' + unconfirmed.length + ' of ' + meta.length +\n    ' line(s); they stay unsent and can be re-sent: ' + unconfirmed.join(', '));\n}\n\n// Nothing confirmed at all -> fail loudly rather than answer the app with a silent success.\nif (!out.length) {\n  const r = responses[0] || {};\n  throw new Error('Hermes confirmed none of the ' + meta.length +\n    ' item(s) in this batch — nothing was marked as sent. ' +\n    String(r.return_description || r.message || r.return_value || '').slice(0, 300));\n}\n\nreturn out;"
       },
       "id": "code-map-sent",
       "name": "Map Sent",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 400]
+      "position": [
+        1100,
+        400
+      ]
     },
     {
       "parameters": {
@@ -85,14 +103,24 @@
         "matchType": "allFilters",
         "filters": {
           "conditions": [
-            { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" }
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
           ]
         },
         "dataToSend": "defineBelow",
         "fieldsUi": {
           "fieldValues": [
-            { "fieldId": "sent_at", "fieldValue": "={{ $now.toISO() }}" },
-            { "fieldId": "hermes_id", "fieldValue": "={{ $json.hermes_id }}" }
+            {
+              "fieldId": "sent_at",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "hermes_id",
+              "fieldValue": "={{ $json.hermes_id }}"
+            }
           ]
         }
       },
@@ -100,18 +128,78 @@
       "name": "Mark Sent",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
-      "position": [1320, 400],
-      "credentials": { "supabaseApi": { "id": "kkiHzEYLOtK6ZLEy", "name": "Nika" } }
+      "position": [
+        1320,
+        400
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      }
     }
   ],
   "connections": {
-    "Webhook": { "main": [[{ "node": "Hermes Authenticate", "type": "main", "index": 0 }]] },
-    "Hermes Authenticate": { "main": [[{ "node": "Prepare Items", "type": "main", "index": 0 }]] },
-    "Prepare Items": { "main": [[{ "node": "Hermes POST Catalogue", "type": "main", "index": 0 }]] },
-    "Hermes POST Catalogue": { "main": [[{ "node": "Map Sent", "type": "main", "index": 0 }]] },
-    "Map Sent": { "main": [[{ "node": "Mark Sent", "type": "main", "index": 0 }]] }
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Hermes Authenticate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hermes Authenticate": {
+      "main": [
+        [
+          {
+            "node": "Prepare Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Items": {
+      "main": [
+        [
+          {
+            "node": "Hermes POST Catalogue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hermes POST Catalogue": {
+      "main": [
+        [
+          {
+            "node": "Map Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Sent": {
+      "main": [
+        [
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
+  "settings": {
+    "executionOrder": "v1"
+  },
   "pinData": {}
 }
