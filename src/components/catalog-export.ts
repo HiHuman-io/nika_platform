@@ -27,6 +27,16 @@ export type ExportColumnSpec = {
    * `value`.
    */
   formula?: (sheetRow: number, col: (key: string) => string) => string;
+  /**
+   * Horizontal alignment of the DATA cells in the xlsx (the header row is always
+   * left). Excel's own default is right for numbers and left for text, so this is
+   * only needed where the client wants otherwise — e.g. the identifiers, which are
+   * text cells so leading zeros survive but should read right-aligned like numbers.
+   * xlsx only; CSV has no formatting.
+   */
+  align?: "left" | "right" | "center";
+  /** Bold data cells in the xlsx. xlsx only. */
+  bold?: boolean;
 };
 
 /** Price tiers are stored as 1/2/3 but the client's catalogue spells them F/M/B. */
@@ -69,12 +79,15 @@ export function formatDmy(value: unknown): string | null {
 export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
   { key: "artist" },
   { key: "title" },
-  { key: "unit", type: "number" },
+  // Client (2026-08-03): unit reads right, like a count.
+  { key: "unit", type: "number", align: "right" },
   { key: "format" },
-  { key: "ean" },
+  // Identifiers stay TEXT so leading zeros survive, but read right-aligned like the
+  // numbers they look like (client, 2026-08-03).
+  { key: "ean", align: "right" },
   { key: "label" },
-  { key: "code" },
-  { key: "catalogue_no" },
+  { key: "code", align: "right" },
+  { key: "catalogue_no", align: "right" },
   // The 2099 sentinel (Warner group, unannounced date) exports as "TBD"; non-Warner
   // missing dates are blank. Hermes still gets the ISO 2099-12-31 from the workflow.
   {
@@ -104,6 +117,8 @@ export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
   },
   {
     key: "calculation_group",
+    // Bold: the client scans this column first (2026-08-03).
+    bold: true,
     value: (r) => CALC_GROUP_LETTER[String(r.calculation_group ?? "")] ?? null,
   },
   { key: "cop", type: "number", format: "0.00", value: (r) => num(r.cop) },
@@ -119,7 +134,7 @@ export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
   // Same wording as the on-screen badge ("in_progress" -> "in progress").
   { key: "status", value: (r) => String(r.status ?? "").replace(/_/g, " ") || null },
   { key: "stran", label: "Stran", value: () => null },
-  { key: "hermes_id", label: "Hermes ID" },
+  { key: "hermes_id", label: "Hermes ID", align: "left" },
 ];
 
 /** Named export layouts a table can opt into via CatalogTable's `exportPreset`. */

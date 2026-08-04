@@ -139,23 +139,40 @@ async function downloadXlsx(
   columns: ExportColumnSpec[],
   rows: Row[],
 ) {
-  const XLSX = await import("xlsx");
+  // xlsx-js-style is SheetJS 0.18.5 with cell-style WRITING added — the community
+  // SheetJS build reads styles but silently discards them on write, so font, size,
+  // bold and alignment were impossible before. Same API; verified to emit a
+  // byte-identical cell type, value, formula, column width and sheet dimension, with
+  // only the style index added.
+  const XLSX = await import("xlsx-js-style");
   const letters = new Map(
     columns.map((c, i) => [c.key, XLSX.utils.encode_col(i)] as const),
   );
   const col = (key: string) => letters.get(key) ?? "A";
 
+  // The client's workbook font (2026-08-03). Applied to every cell, header included.
+  const font = { name: "Utsaah", sz: 11 };
+  const styleFor = (c: ExportColumnSpec) => ({
+    font: c.bold ? { ...font, bold: true } : font,
+    ...(c.align ? { alignment: { horizontal: c.align } } : {}),
+  });
+
   const ws: Record<string, unknown> = {};
   columns.forEach((c, C) => {
-    ws[XLSX.utils.encode_cell({ r: 0, c: C })] = { t: "s", v: c.label ?? c.key };
+    ws[XLSX.utils.encode_cell({ r: 0, c: C })] = {
+      t: "s",
+      v: c.label ?? c.key,
+      s: { font },
+    };
   });
   rows.forEach((row, i) => {
     const R = i + 1;
     columns.forEach((c, C) => {
       const address = XLSX.utils.encode_cell({ r: R, c: C });
+      const s = styleFor(c);
       if (c.formula) {
         // No `v`: Excel/LibreOffice compute the value when the file is opened.
-        ws[address] = { t: "n", f: c.formula(R + 1, col), z: c.format };
+        ws[address] = { t: "n", f: c.formula(R + 1, col), z: c.format, s };
         return;
       }
       const value = exportValue(c, row);
@@ -163,10 +180,12 @@ async function downloadXlsx(
       // formulas testing ="" (and Excel's own blank checks) behave.
       if (value === null || value === undefined || value === "") return;
       if (c.type === "number" && typeof value === "number") {
-        ws[address] = { t: "n", v: value, z: c.format };
+        ws[address] = { t: "n", v: value, z: c.format, s };
         return;
       }
-      ws[address] = { t: "s", v: toText(value) };
+      // Still a TEXT cell — leading zeros on EAN/code/cat. no must survive. Only the
+      // alignment changes, never the type.
+      ws[address] = { t: "s", v: toText(value), s };
     });
   });
   ws["!ref"] = XLSX.utils.encode_range({
