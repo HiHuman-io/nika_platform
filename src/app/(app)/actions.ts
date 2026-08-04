@@ -18,6 +18,7 @@ const TABLE_ROUTES = {
   exclusions: "/settings",
   mandatory_fields: "/settings",
   label_notes: "/settings",
+  blocked_emails: "/settings",
 } as const;
 
 type TableName = keyof typeof TABLE_ROUTES;
