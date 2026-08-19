@@ -1,0 +1,135 @@
+{
+  "name": "Nika — Promote Sent Lines to Processed (nightly)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 0,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "0a1f5f6e-2b73-4a2c-9a51-6d1c6f0b1a01",
+      "name": "Every Night at Midnight",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-260, 300],
+      "notes": "Midnight LJUBLJANA time, not UTC — the workflow's own timezone setting (Europe/Ljubljana) is what the schedule is read in, and it is the same clock the app shows every timestamp on."
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "catalog_lines",
+        "returnAll": true,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "catalog",
+              "condition": "neq",
+              "keyValue": "processed"
+            }
+          ]
+        }
+      },
+      "id": "0a1f5f6e-2b73-4a2c-9a51-6d1c6f0b1a02",
+      "name": "Live Catalog Lines",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [-40, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      },
+      "notes": "Main + Other only — the 25k frozen Processed rows are never loaded. Safe as a filter because catalog_lines.catalog is NOT NULL DEFAULT 'main' (add-catalog-column.sql), so no row can slip past a neq test by being null. \"sent_at is not null\" cannot be expressed here — the node offers `is` but no `not.is` — so that test lives in the code node."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nightly: a catalog line that has been SENT TO HERMES belongs in the Processed catalog\n// (client, 2026-08-19). Main and Other are the working desks — what is still being chased,\n// priced and approved. Processed is the finished record, and it is also the dedup shield\n// the extraction workflow relies on. Leaving sent lines on the working desks means the\n// client scrolls past finished work every day to find the four rows that need attention.\n//\n// The move is a MOVE, not a copy and not a rewrite: only `catalog` changes. Every other\n// field — status, sent_at, hermes_id, prices, notes — is left exactly as it is, so the row\n// in the Processed tab is the same row, with its whole history intact.\n//\n// WHAT COUNTS AS SENT: `sent_at` is set. That is the only signal the send workflow writes\n// and the same one the app's \"Hermes\" badge reads, so the two can never disagree. Status is\n// deliberately NOT part of the test — a line cannot be sent without being approved first,\n// and re-deriving that here would only create a second, drifting definition.\n//\n// The FIRST run sweeps everything already sent, however long ago; every run after it has\n// only the previous day's sends to move.\n\nconst rows = $input.all();\nconst move = [];\nfor (const r of rows) {\n  const j = r.json || {};\n  // Re-checked here rather than in the query: the Supabase node's filter list has `is` but\n  // no `not.is`, so \"sent_at is not null\" cannot be expressed as a filter.\n  const sent = j.sent_at !== null && j.sent_at !== undefined && String(j.sent_at).trim() !== '';\n  if (!sent) continue;\n  // Belt and braces against the query: never rewrite a row that is already Processed.\n  if (String(j.catalog == null ? 'main' : j.catalog) === 'processed') continue;\n  if (j.id === null || j.id === undefined) continue;\n  move.push({ json: { id: j.id, catalog: 'processed' } });\n}\n\nconsole.log('scanned ' + rows.length + ' live line(s); moving ' + move.length + ' sent line(s) to Processed');\n// Zero to move is the normal case on a quiet day: the node returns nothing and the update\n// below simply does not run.\nreturn move;\n"
+      },
+      "id": "0a1f5f6e-2b73-4a2c-9a51-6d1c6f0b1a03",
+      "name": "Pick Sent Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [180, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "catalog_lines",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "dataToSend": "autoMapInputData",
+        "inputsToIgnore": "id"
+      },
+      "id": "0a1f5f6e-2b73-4a2c-9a51-6d1c6f0b1a04",
+      "name": "Move to Processed",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [400, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "kkiHzEYLOtK6ZLEy",
+          "name": "Nika"
+        }
+      },
+      "notes": "`id` is the filter, so it is excluded from the body: the only column written is catalog = 'processed'. Same node shape as 'Update Catalog Line' in the extraction workflow."
+    }
+  ],
+  "connections": {
+    "Every Night at Midnight": {
+      "main": [
+        [
+          {
+            "node": "Live Catalog Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Live Catalog Lines": {
+      "main": [
+        [
+          {
+            "node": "Pick Sent Lines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Sent Lines": {
+      "main": [
+        [
+          {
+            "node": "Move to Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "timezone": "Europe/Ljubljana",
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "be02d0c81971395717609b69bec1057537ae54d926b602a3992bcf63fd9d8f1f"
+  }
+}
