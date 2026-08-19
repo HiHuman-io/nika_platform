@@ -30,13 +30,18 @@ function isAllowed(table: string): table is TableName {
 }
 
 /**
- * Artist and title are always stored ALL CAPS — the extraction workflow already
+ * Artist, title and label are always stored ALL CAPS — the extraction workflow already
  * uppercases everything it writes, so a row typed or edited by hand in the app was
  * the one way mixed case could still get in ("180g" instead of "180G", "14th"
  * instead of "14TH"). Normalising here covers every write path (add row, edit
  * dialog, inline cell edit) because they all funnel through these actions.
+ *
+ * `label` joined the list on 2026-08-19: labels the sender map does not know yet arrived
+ * with whatever casing the source printed ("Vicisolum Productions", "Black Lodge") and sat
+ * in the catalog next to WARNER/ATLANTIC. The workflow caps them from v39 on; this covers
+ * the hand-edit path.
  */
-const UPPERCASE_FIELDS = ["artist", "title"] as const;
+const UPPERCASE_FIELDS = ["artist", "title", "label"] as const;
 
 function normalizeValues(
   table: string,

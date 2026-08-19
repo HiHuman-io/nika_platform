@@ -1,8 +1,16 @@
 import { type ReactNode } from "react";
 
+import { formatDateTimeCet } from "./catalog-export";
+
 export type Row = Record<string, unknown>;
 
-export type ColumnVariant = "text" | "code" | "number" | "date" | "status";
+export type ColumnVariant =
+  | "text"
+  | "code"
+  | "number"
+  | "date"
+  | "datetime"
+  | "status";
 
 export type ColumnDef = {
   key: string;
@@ -66,6 +74,13 @@ export function inferVariant(key: string, rows: Row[]): ColumnVariant {
   if (values.length > 0 && values.every((v) => typeof v === "number")) {
     return "number";
   }
+  // created_at / sent_at / approved_at / received_at reach every table this way — as
+  // inferred columns nobody declared — and used to print the raw UTC ISO string. Detected
+  // from the VALUE rather than the name so a plain date column (release_date, "2026-08-28")
+  // is untouched and any future timestamp is covered without a list to maintain.
+  if (values.length > 0 && values.every((v) => formatDateTimeCet(v) !== null)) {
+    return "datetime";
+  }
   return "text";
 }
 
@@ -97,6 +112,10 @@ export function renderCellValue(
   }
   if (variant === "code") {
     return <span className="font-mono text-xs">{String(value)}</span>;
+  }
+  if (variant === "datetime") {
+    const shown = formatDateTimeCet(value);
+    if (shown) return shown;
   }
   return String(value);
 }

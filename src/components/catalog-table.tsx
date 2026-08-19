@@ -19,6 +19,7 @@ import { bulkDelete, bulkUpdateStatus, duplicateRows, sendToHermes, updateRow } 
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import {
   EXPORT_PRESETS,
+  formatDateTimeCet,
   formatDmy,
   type ExportColumnSpec,
   type ExportPreset,
@@ -46,7 +47,13 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export type CatalogVariant = "text" | "code" | "number" | "date" | "status";
+export type CatalogVariant =
+  | "text"
+  | "code"
+  | "number"
+  | "date"
+  | "datetime"
+  | "status";
 
 export type CatalogColumnSpec = {
   key: string;
@@ -95,9 +102,18 @@ function headerMinWidth(label: string): number {
   return Math.ceil(label.length * 8) + 52;
 }
 
-/** Read a column's value out of a row: derived when the spec says so, raw otherwise. */
+/**
+ * Read a column's value out of a row: derived when the spec says so, raw otherwise.
+ *
+ * A raw pass-through that turns out to be a timestamp is rendered in Slovenian local time,
+ * the same as on screen — otherwise "Created at" would read 11:18 in the exported file and
+ * 13:18 in the app. A column with its own `value` is left alone; it already decides its own
+ * formatting.
+ */
 function exportValue(column: ExportColumnSpec, row: Row): unknown {
-  return column.value ? column.value(row) : row[column.key];
+  if (column.value) return column.value(row);
+  const raw = row[column.key];
+  return formatDateTimeCet(raw) ?? raw;
 }
 
 /** Build a UTF-8 CSV (Excel-friendly) from the given columns + rows and download it. */
@@ -235,6 +251,13 @@ function CatalogCell({
     // 04.07.2026). Storage stays ISO — Hermes and date sorting rely on it — so
     // this is display-only.
     const shown = formatDmy(value);
+    if (shown) return <>{shown}</>;
+  }
+  if (variant === "datetime") {
+    // Slovenian local time, the same clock the workflow stamps `source_email` with, so a
+    // row's "created at" and its "source email" can no longer disagree by two hours
+    // (client, 2026-08-19). Storage stays UTC.
+    const shown = formatDateTimeCet(value);
     if (shown) return <>{shown}</>;
   }
   return <>{String(value)}</>;
