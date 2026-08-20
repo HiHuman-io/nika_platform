@@ -76,6 +76,7 @@
       },
       "id": "0a1f5f6e-2b73-4a2c-9a51-6d1c6f0b1a04",
       "name": "Move to Processed",
+      "onError": "continueRegularOutput",
       "type": "n8n-nodes-base.supabase",
       "typeVersion": 1,
       "position": [400, 300],
@@ -85,7 +86,7 @@
           "name": "Nika"
         }
       },
-      "notes": "`id` is the filter, so it is excluded from the body: the only column written is catalog = 'processed'. Same node shape as 'Update Catalog Line' in the extraction workflow."
+      "notes": "`id` is the filter, so it is excluded from the body: the only column written is catalog = 'processed'. Same node shape as 'Update Catalog Line' in the extraction workflow. onError=continueRegularOutput so ONE row that cannot be written can never stop the sweep and strand the rest — the same guard 'Insert Catalog Line' carries. A barcode already in Processed cannot actually collide here (catalog_lines_code_uniq is unique on `code` across the WHOLE table, not per catalog, so the duplicate would have been skipped at insert time and could never reach Main), but a nightly job that stops on its first surprise is not worth the risk."
     }
   ],
   "connections": {
