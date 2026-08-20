@@ -43,6 +43,16 @@ function isAllowed(table: string): table is TableName {
  */
 const UPPERCASE_FIELDS = ["artist", "title", "label"] as const;
 
+/**
+ * The one exception to ALL CAPS: a vinyl weight keeps a lowercase g — "180g", never "180G"
+ * (client, 2026-08-20). "GR" and "GRAM(S)" are the same measurement spelled longer and
+ * normalise to the same thing; a G with no digit in front of it ("BIG", "G-FUNK") is not a
+ * weight and is left alone. Kept in step with gramCase() in the extraction workflow.
+ */
+function gramCase(value: string): string {
+  return value.replace(/(\d)\s*G(?:R(?:AMS?)?)?(?![A-Za-z0-9])/gi, "$1g");
+}
+
 function normalizeValues(
   table: string,
   values: Record<string, unknown>,
@@ -53,6 +63,7 @@ function normalizeValues(
     const v = out[key];
     if (typeof v === "string") out[key] = v.toUpperCase();
   }
+  if (typeof out.title === "string") out.title = gramCase(out.title);
   return out;
 }
 
