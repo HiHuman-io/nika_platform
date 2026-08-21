@@ -48,8 +48,19 @@ export type ParseReport = {
   droppedDuplicate: number;
   /** Which sheet the rows came from. */
   sheet: string | null;
-  /** Header cells that were expected but not found, if any. */
+  /**
+   * Only when NO sheet could be used: the required headers (Artist / Title / EAN) that the
+   * best candidate was missing, so the error can say what it looked for.
+   */
   missingColumns: string[];
+  /**
+   * Expected headers the chosen sheet does NOT have. Those fields import as blank for every
+   * row, which is legitimate — a workbook need not carry a COP column — but is also exactly
+   * what a RENAMED or misspelled header looks like ("Our Price" -> "Price" would import
+   * 25,000 rows with no price and no complaint). Surfaced so a silent gap becomes a visible
+   * one; it never blocks the import.
+   */
+  columnsNotFound: string[];
 };
 
 /** Labels whose supplier code is not the Warner default. From the proven importer. */
@@ -205,6 +216,7 @@ export function parseKatalog(sheets: [string, SheetRow[]][]): ParseReport {
     droppedDuplicate: 0,
     sheet: null,
     missingColumns: [],
+    columnsNotFound: [],
   };
 
   // Pick the sheet that actually holds the catalogue. The client's file calls it "List1",
@@ -226,7 +238,20 @@ export function parseKatalog(sheets: [string, SheetRow[]][]): ParseReport {
   if (!chosen) return { ...empty, missingColumns: bestMissing };
 
   const [sheetName, sheetRows] = chosen;
-  const report: ParseReport = { ...empty, sheet: sheetName, read: sheetRows.length };
+  // Which of the expected headers this sheet simply does not have. Those fields will be
+  // blank on every row — fine when the workbook genuinely has no such column, and the only
+  // warning anyone gets when a header has been renamed since the last import.
+  const headers = new Set(Object.keys(normaliseKeys(sheetRows[0])));
+  const columnsNotFound = (Object.keys(COLUMNS) as (keyof typeof COLUMNS)[])
+    .filter((f) => !COLUMNS[f].some((n) => headers.has(n)))
+    .map((f) => COLUMNS[f][0]);
+
+  const report: ParseReport = {
+    ...empty,
+    sheet: sheetName,
+    read: sheetRows.length,
+    columnsNotFound,
+  };
   const seen = new Set<string>();
 
   for (const raw of sheetRows) {

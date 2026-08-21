@@ -43,11 +43,13 @@ export function ProcessedImportDialog() {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [status, setStatus] = React.useState<string | null>(null);
+  const [warning, setWarning] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState<{ done: number; total: number } | null>(null);
 
   const reset = () => {
     setError(null);
     setStatus(null);
+    setWarning(null);
     setProgress(null);
   };
 
@@ -130,15 +132,27 @@ export function ProcessedImportDialog() {
 
       const dropped =
         report.droppedD + report.droppedNoId + report.droppedDuplicate;
+      // A header the workbook does not have imports as blank on every row. Legitimate when
+      // the column really is absent, and indistinguishable from a renamed header — so it is
+      // recorded rather than left to be discovered months later in a price report.
+      const gap = report.columnsNotFound.length
+        ? `no column found for: ${report.columnsNotFound.join(", ")} (imported blank)`
+        : null;
+
       await finishProcessedImport(started.id, {
         inserted,
         skipped,
         failed,
-        note: dropped
-          ? `${n(dropped)} rows not carried over (${n(report.droppedD)} group D, ` +
-            `${n(report.droppedNoId)} with no barcode or catalogue number, ` +
-            `${n(report.droppedDuplicate)} repeated in the file)`
-          : null,
+        note: [
+          dropped
+            ? `${n(dropped)} rows not carried over (${n(report.droppedD)} group D, ` +
+              `${n(report.droppedNoId)} with no barcode or catalogue number, ` +
+              `${n(report.droppedDuplicate)} repeated in the file)`
+            : null,
+          gap,
+        ]
+          .filter(Boolean)
+          .join("; ") || null,
       });
 
       setBusy(false);
@@ -148,6 +162,7 @@ export function ProcessedImportDialog() {
           (dropped ? `, ${n(dropped)} not carried over` : "") +
           `. Sheet "${report.sheet}".`,
       );
+      setWarning(gap ? `Check the header row — ${gap}.` : null);
       router.refresh();
     } catch (err) {
       setBusy(false);
@@ -221,6 +236,12 @@ export function ProcessedImportDialog() {
             ) : null}
 
             {status ? <p className="text-sm text-muted">{status}</p> : null}
+
+            {warning ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {warning}
+              </p>
+            ) : null}
 
             {error ? (
               <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
