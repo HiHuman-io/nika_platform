@@ -24,10 +24,15 @@ const CATALOG_COLUMNS: CatalogColumnSpec[] = [
   { key: "release_date", label: "Release", variant: "date", size: 105 },
   // Readable reason (pulled from the `extra` jsonb) — mainly for excluded lines.
   { key: "exclusion_reason", label: "Exclusion reason", size: 200 },
-  // Also out of `extra`, hidden until wanted: why the workflow wants a human to
-  // look (e.g. an indefinite territory), and follow-ups that arrived after the
-  // line had already gone to Hermes and so were deliberately not applied.
-  { key: "review_note", label: "Review note", size: 240, hidden: true },
+  // Why the workflow wants a human to look. VISIBLE from 2026-09-03: this is where an
+  // INCOMPLETE EXTRACTION is reported — the source printed barcodes that came back from the
+  // AI as nothing at all — and a warning nobody can see is not a warning. A Rhino release
+  // note lost 25 of its 39 releases and the only trace was a jsonb field on the Raw Entries
+  // page. Everything else it carries (an unmapped label, an indefinite territory) is
+  // actionable too, so it earns its place on screen.
+  { key: "review_note", label: "Review note", size: 240 },
+  // Follow-ups that arrived after the line had already gone to Hermes and so were
+  // deliberately not applied. Still hidden: rare, and only interesting after the fact.
   { key: "late_update", label: "Late update", size: 240, hidden: true },
   { key: "calculation_group", label: "Calculation group", size: 130 },
   { key: "supplier_code", label: "Supplier code", size: 110 },
