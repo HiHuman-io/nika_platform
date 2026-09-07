@@ -40,7 +40,52 @@ export type ExportColumnSpec = {
   align?: "left" | "right" | "center";
   /** Bold data cells in the xlsx. xlsx only. */
   bold?: boolean;
+  /**
+   * Mark the cell as Excel TEXT (number format "@") and, after the workbook is
+   * written, set the quote-prefix flag on it — the same state Excel puts a cell in
+   * when you type an apostrophe before a number. The cell reads 0603497803590 and
+   * the formula bar shows '0603497803590 (client, 2026-09-07).
+   *
+   * Only for identifiers. It is what stops a leading zero being lost the moment
+   * anyone re-saves the file or pastes the column somewhere else. xlsx only.
+   */
+  quoteText?: boolean;
 };
+
+/**
+ * Add Excel's quote-prefix flag to every cell format that is TEXT ("@", built-in
+ * number format 49).
+ *
+ * The spreadsheet library writes fonts, borders, alignment and number formats but
+ * silently drops `quotePrefix`, so the flag has to be put back into styles.xml after
+ * the fact. Keyed on the text format rather than on cell addresses because that is
+ * the one thing the identifier columns have and nothing else does — no brittle
+ * mapping from a column to whichever style index the library happened to assign.
+ *
+ * Pure string in, string out, so it can be tested without building a workbook.
+ */
+export function addQuotePrefixToTextStyles(stylesXml: string): string {
+  const textIds = new Set(["49"]); // 49 is Excel's built-in "@"
+  for (const nf of stylesXml.match(/<numFmt[^>]*\/>/g) ?? []) {
+    const id = /numFmtId="(\d+)"/.exec(nf);
+    const code = /formatCode="([^"]*)"/.exec(nf);
+    if (id && code && code[1] === "@") textIds.add(id[1]);
+  }
+  return stylesXml.replace(/<cellXfs[^>]*>[\s\S]*?<\/cellXfs>/, (block) =>
+    block.replace(/<xf\b[^>]*\/>|<xf\b[^>]*>[\s\S]*?<\/xf>/g, (xf) => {
+      const id = /numFmtId="(\d+)"/.exec(xf);
+      if (!id || !textIds.has(id[1]) || /quotePrefix=/.test(xf)) return xf;
+      return xf.replace(/<xf\b/, '<xf quotePrefix="1"');
+    }),
+  );
+}
+
+/**
+ * Accounting-style euro: "7.50 €". A real number underneath, so the column sums and
+ * calculates (client, 2026-09-07). Excel renders the decimal separator in the reader's
+ * own locale, so a Slovenian machine shows "7,50 €".
+ */
+const EUR_FORMAT = '#,##0.00" €"';
 
 /** Price tiers are stored as 1/2/3 but the client's catalogue spells them F/M/B. */
 const CALC_GROUP_LETTER: Record<string, string> = { "1": "F", "2": "M", "3": "B" };
@@ -60,6 +105,20 @@ export function formatDmy(value: unknown): string | null {
   // 02.10.2026). Used by both the on-screen catalog and the xlsx/csv export. Storage
   // stays ISO and Hermes still receives ISO, so this is display-only.
   return m ? `${+m[3]}.${+m[2]}.${m[1]}` : null;
+}
+
+/**
+ * ISO date -> DD/MM/YYYY, zero-padded. The EXPORT's release-date format (client,
+ * 2026-09-07): "8.10.2027" was coming out ragged, and a padded, slashed date lines
+ * up in the column.
+ *
+ * Deliberately separate from `formatDmy`, which the on-screen catalog uses and the
+ * client asked for unpadded with dots back in August. Two audiences, two formats;
+ * one function serving both is how one of them silently gets changed.
+ */
+export function formatDmySlash(value: unknown): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ""));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
 }
 
 /**
@@ -144,7 +203,9 @@ export function splitFormatUnit(
  *
  *   artist, title, unit, format, EAN, label, code, cat. no, release date,
  *   our price, our price x 95%, calculation group, COP, PPD, our price,
- *   status, stran, Hermes ID
+ *   stran, Hermes ID
+ *
+ * "Status" was dropped on 2026-09-07 — the client stopped needing it in the file.
  *
  * Notes on the odd ones:
  *  - "Our price" deliberately appears TWICE (positions 10 and 15) — the old
@@ -165,20 +226,25 @@ export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
   { key: "format", value: (r) => splitFormatUnit(r.format, r.unit).format },
   // Identifiers stay TEXT so leading zeros survive, but read right-aligned like the
   // numbers they look like (client, 2026-08-03).
-  { key: "ean", align: "right" },
+  { key: "ean", align: "right", quoteText: true },
   { key: "label" },
-  { key: "code", align: "right" },
-  { key: "catalogue_no", align: "right" },
+  { key: "code", align: "right", quoteText: true },
+  { key: "catalogue_no", align: "right", quoteText: true },
   // The 2099 sentinel (Warner group, unannounced date) exports as "TBD"; non-Warner
   // missing dates are blank. Hermes still gets the ISO 2099-12-31 from the workflow.
   {
     key: "release_date",
+    // Right-aligned so the column reads as a date column even though "TBD" shares it
+    // (client, 2026-09-07).
+    align: "right",
     value: (r) =>
       String(r.release_date ?? "").slice(0, 10) === "2099-12-31"
         ? "TBD"
-        : formatDmy(r.release_date),
+        : formatDmySlash(r.release_date),
   },
-  { key: "our_price", type: "number", format: "0.00", value: (r) => num(r.our_price) },
+  // Both columns headed "Our price €" show the currency and stay real numbers, so the
+  // client can still sum and calculate on them (client, 2026-09-07).
+  { key: "our_price", type: "number", format: EUR_FORMAT, value: (r) => num(r.our_price) },
   {
     key: "our_price_95",
     label: "Our price 95%",
@@ -209,11 +275,9 @@ export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
     key: "our_price_repeat",
     label: "Our price €",
     type: "number",
-    format: "0.00",
+    format: EUR_FORMAT,
     value: (r) => num(r.our_price),
   },
-  // Same wording as the on-screen badge ("in_progress" -> "in progress").
-  { key: "status", value: (r) => String(r.status ?? "").replace(/_/g, " ") || null },
   { key: "stran", label: "Stran", value: () => null },
   { key: "hermes_id", label: "Hermes ID", align: "left" },
 ];

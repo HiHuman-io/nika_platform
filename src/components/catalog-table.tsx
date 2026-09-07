@@ -19,6 +19,7 @@ import { bulkDelete, bulkUpdateStatus, duplicateRows, sendToHermes, updateRow } 
 import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import {
   EXPORT_PRESETS,
+  addQuotePrefixToTextStyles,
   formatDateTimeCet,
   formatDmy,
   type ExportColumnSpec,
@@ -168,8 +169,16 @@ async function downloadXlsx(
 
   // The client's workbook font (2026-08-03). Applied to every cell, header included.
   const font = { name: "Utsaah", sz: 11 };
+  // Every populated cell gets all four borders (client, 2026-09-07). Empty cells are
+  // never written at all (see below), so the ruled area ends exactly where the data does.
+  const thin = { style: "thin", color: { rgb: "FF000000" } };
+  const border = { top: thin, bottom: thin, left: thin, right: thin };
   const styleFor = (c: ExportColumnSpec) => ({
     font: c.bold ? { ...font, bold: true } : font,
+    border,
+    // "@" is Excel's TEXT format. It is also the marker the quote-prefix patch below
+    // keys on, so it has to be set here and not only implied by the cell type.
+    ...(c.quoteText ? { numFmt: "@" } : {}),
     ...(c.align ? { alignment: { horizontal: c.align } } : {}),
   });
 
@@ -178,7 +187,7 @@ async function downloadXlsx(
     ws[XLSX.utils.encode_cell({ r: 0, c: C })] = {
       t: "s",
       v: c.label ?? c.key,
-      s: { font },
+      s: { font, border },
     };
   });
   rows.forEach((row, i) => {
@@ -201,7 +210,7 @@ async function downloadXlsx(
       }
       // Still a TEXT cell — leading zeros on EAN/code/cat. no must survive. Only the
       // alignment changes, never the type.
-      ws[address] = { t: "s", v: toText(value), s };
+      ws[address] = { t: "s", v: toText(value), s, ...(c.quoteText ? { z: "@" } : {}) };
     });
   });
   ws["!ref"] = XLSX.utils.encode_range({
@@ -218,7 +227,43 @@ async function downloadXlsx(
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Export");
-  XLSX.writeFile(wb, filename);
+
+  // The library writes every style except `quotePrefix`, which it drops silently, so the
+  // finished workbook is reopened as a zip and the flag is put into styles.xml by hand
+  // (client, 2026-09-07: EAN and code should carry Excel's apostrophe). CFB ships with
+  // the spreadsheet library itself, so this costs no extra dependency.
+  //
+  // If anything about the patch fails the ORIGINAL bytes are downloaded instead: a
+  // workbook missing one style attribute is a small disappointment, a workbook that
+  // fails to open is a broken export.
+  const original: ArrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  let bytes = new Uint8Array(original);
+  try {
+    const cfb = XLSX.CFB.read(bytes, { type: "array" });
+    const styles = XLSX.CFB.find(cfb, "/xl/styles.xml");
+    if (styles?.content) {
+      const xml = new TextDecoder().decode(new Uint8Array(styles.content as ArrayLike<number>));
+      const patched = addQuotePrefixToTextStyles(xml);
+      if (patched !== xml) {
+        XLSX.CFB.utils.cfb_add(cfb, "/xl/styles.xml", new TextEncoder().encode(patched));
+        bytes = new Uint8Array(XLSX.CFB.write(cfb, { fileType: "zip", type: "array" }));
+      }
+    }
+  } catch {
+    bytes = new Uint8Array(original);
+  }
+
+  const blob = new Blob([bytes], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function CatalogCell({
