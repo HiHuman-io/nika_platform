@@ -20,6 +20,7 @@ import { type Row, StatusBadge, inferVariant, toText } from "./table-cells";
 import {
   EXPORT_PRESETS,
   addQuotePrefixToTextStyles,
+  blankStyledCellsToEmpty,
   formatDateTimeCet,
   formatDmy,
   type ExportColumnSpec,
@@ -169,8 +170,10 @@ async function downloadXlsx(
 
   // The client's workbook font (2026-08-03). Applied to every cell, header included.
   const font = { name: "Utsaah", sz: 11 };
-  // Every populated cell gets all four borders (client, 2026-09-07). Empty cells are
-  // never written at all (see below), so the ruled area ends exactly where the data does.
+  // Every cell in the table gets all four borders — the whole rectangle from the header
+  // to the last row and the last column, whether or not a given cell holds anything
+  // (client, 2026-09-07). The borders are what mark out how big the table is, so they
+  // cannot stop where the data happens to stop.
   const thin = { style: "thin", color: { rgb: "FF000000" } };
   const border = { top: thin, bottom: thin, left: thin, right: thin };
   const styleFor = (c: ExportColumnSpec) => ({
@@ -201,9 +204,15 @@ async function downloadXlsx(
         return;
       }
       const value = exportValue(c, row);
-      // Leave the cell out entirely rather than writing an empty string, so
-      // formulas testing ="" (and Excel's own blank checks) behave.
-      if (value === null || value === undefined || value === "") return;
+      // A cell has to EXIST for a border to hang on it, and the client wants the whole
+      // table ruled (2026-09-07). The library will not write a valueless cell, so an
+      // empty one is written holding "" and the value is stripped back out by
+      // blankStyledCellsToEmpty() below — leaving the border and a genuinely blank cell,
+      // so ISBLANK, COUNTA and "Go To Special -> Blanks" all still tell the truth.
+      if (value === null || value === undefined || value === "") {
+        ws[address] = { t: "s", v: "", s };
+        return;
+      }
       if (c.type === "number" && typeof value === "number") {
         ws[address] = { t: "n", v: value, z: c.format, s };
         return;
@@ -240,15 +249,21 @@ async function downloadXlsx(
   let bytes = new Uint8Array(original);
   try {
     const cfb = XLSX.CFB.read(bytes, { type: "array" });
-    const styles = XLSX.CFB.find(cfb, "/xl/styles.xml");
-    if (styles?.content) {
-      const xml = new TextDecoder().decode(new Uint8Array(styles.content as ArrayLike<number>));
-      const patched = addQuotePrefixToTextStyles(xml);
-      if (patched !== xml) {
-        XLSX.CFB.utils.cfb_add(cfb, "/xl/styles.xml", new TextEncoder().encode(patched));
-        bytes = new Uint8Array(XLSX.CFB.write(cfb, { fileType: "zip", type: "array" }));
-      }
-    }
+    const decode = (part: { content?: unknown }) =>
+      new TextDecoder().decode(new Uint8Array(part.content as ArrayLike<number>));
+    let touched = false;
+    const patch = (path: string, fn: (xml: string) => string) => {
+      const part = XLSX.CFB.find(cfb, path);
+      if (!part?.content) return;
+      const xml = decode(part);
+      const next = fn(xml);
+      if (next === xml) return;
+      XLSX.CFB.utils.cfb_add(cfb, path, new TextEncoder().encode(next));
+      touched = true;
+    };
+    patch("/xl/styles.xml", addQuotePrefixToTextStyles);
+    patch("/xl/worksheets/sheet1.xml", blankStyledCellsToEmpty);
+    if (touched) bytes = new Uint8Array(XLSX.CFB.write(cfb, { fileType: "zip", type: "array" }));
   } catch {
     bytes = new Uint8Array(original);
   }

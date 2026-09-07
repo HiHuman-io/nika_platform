@@ -81,6 +81,38 @@ export function addQuotePrefixToTextStyles(stylesXml: string): string {
 }
 
 /**
+ * Turn styled empty-string cells into genuinely BLANK styled cells.
+ *
+ * The client wants the whole table ruled, not just the cells that happen to hold
+ * something (2026-09-07), and a border lives on a cell — so a cell has to exist for
+ * every position in the rectangle. The spreadsheet library will not write a cell
+ * without a value: a stub (`t: "z"`) is dropped on the floor, and a style on its own
+ * is dropped too. The only cell it will write is one holding "".
+ *
+ * An empty string is not the same as an empty cell. `ISBLANK` goes false, "Go To
+ * Special → Blanks" stops finding them, and `COUNTA` on a column reports every row
+ * instead of the filled ones — in the file the client reads all day. So the value and
+ * the type are stripped back out afterwards, leaving `<c r="J5" s="7"/>`: the style,
+ * the border, and nothing in the cell. Exactly what Excel itself writes for a
+ * formatted empty cell.
+ *
+ * Only ever touches cells whose value is literally empty, and the writer only ever
+ * produces those for the blanks we asked for.
+ */
+export function blankStyledCellsToEmpty(sheetXml: string): string {
+  return sheetXml.replace(
+    /<c\b([^>]*?)\s*(?:\/>|>\s*(?:<v\s*\/>|<v>\s*<\/v>)\s*<\/c>)/g,
+    (whole, attrs: string) => {
+      if (!/<v/.test(whole)) return whole; // already an empty cell, leave it alone
+      const r = /\br="([^"]+)"/.exec(attrs);
+      const s = /\bs="([^"]+)"/.exec(attrs);
+      if (!r) return whole;
+      return `<c r="${r[1]}"${s ? ` s="${s[1]}"` : ""}/>`;
+    },
+  );
+}
+
+/**
  * Accounting-style euro: "7.50 €". A real number underneath, so the column sums and
  * calculates (client, 2026-09-07). Excel renders the decimal separator in the reader's
  * own locale, so a Slovenian machine shows "7,50 €".

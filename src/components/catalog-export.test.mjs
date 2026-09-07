@@ -8,6 +8,7 @@ import XLSX from "xlsx-js-style";
 import {
   CATALOG_EXPORT_COLUMNS,
   addQuotePrefixToTextStyles,
+  blankStyledCellsToEmpty,
   formatDmy,
   formatDmySlash,
 } from "./catalog-export.ts";
@@ -56,6 +57,11 @@ const rows = [{
   ean: "0603497803590", label: "WARNER", code: "0349780359", catalogue_no: "0021430064",
   release_date: "2027-10-08", our_price: 7.5, calculation_group: "1", cop: 2.46,
   ppd: "18,5/14,75", status: "in_progress", hermes_id: "12345",
+}, {
+  // A sparse row: most of it empty, which is the shape that showed the borders stopping
+  // short. Every one of these blanks still has to be inside the ruled rectangle.
+  artist: "KOVACS", title: "LEAVE THE SUN BEHIND", ean: "1200214815678",
+  label: "WM BENELUX / WM CEG", code: "0021481567", release_date: "2026-08-28",
 }];
 const columns = CATALOG_EXPORT_COLUMNS.map((c) => ({ ...c, label: c.label ?? c.key }));
 const font = { name: "Utsaah", sz: 11 };
@@ -76,7 +82,7 @@ rows.forEach((row, i) => {
     const s = styleFor(c);
     if (c.formula) { ws[address] = { t: "n", f: c.formula(R + 1, () => "J"), z: c.format, s }; return; }
     const value = c.value ? c.value(row) : row[c.key];
-    if (value === null || value === undefined || value === "") return;
+    if (value === null || value === undefined || value === "") { ws[address] = { t: "s", v: "", s }; return; }
     if (c.type === "number" && typeof value === "number") { ws[address] = { t: "n", v: value, z: c.format, s }; return; }
     ws[address] = { t: "s", v: String(value), s, ...(c.quoteText ? { z: "@" } : {}) };
   });
@@ -92,6 +98,12 @@ const xml = new TextDecoder().decode(new Uint8Array(stylesPart.content));
 const patched = addQuotePrefixToTextStyles(xml);
 ok("the patch changes styles.xml", patched !== xml);
 XLSX.CFB.utils.cfb_add(cfb, "/xl/styles.xml", new TextEncoder().encode(patched));
+{
+  const sheetPart = XLSX.CFB.find(cfb, "/xl/worksheets/sheet1.xml");
+  const raw = new TextDecoder().decode(new Uint8Array(sheetPart.content));
+  ok("the sheet has styled empty-string cells before the patch", /<v><\/v>|<v\/>/.test(raw));
+  XLSX.CFB.utils.cfb_add(cfb, "/xl/worksheets/sheet1.xml", new TextEncoder().encode(blankStyledCellsToEmpty(raw)));
+}
 bytes = new Uint8Array(XLSX.CFB.write(cfb, { fileType: "zip", type: "array" }));
 
 ok("the patched file still reads as a valid workbook", (() => {
@@ -123,6 +135,36 @@ const at = (k) => back[XLSX.utils.encode_col(columns.findIndex((c) => c.key === 
 ok("(c) the EAN is still text, leading zero intact: " + at("ean").v, at("ean").t === "s" && at("ean").v === "0603497803590");
 ok("(d) the date reads " + at("release_date").v, at("release_date").v === "08/10/2027");
 ok("(e) the price is a NUMBER, so it sums: " + at("our_price").v, at("our_price").t === "n" && at("our_price").v === 7.5);
+
+console.log("\n=== (b) the WHOLE rectangle is ruled, empty cells included ===");
+{
+  // Alternation at the TOP level, not inside the attribute run: "[^>]*(?:\/>|>...)" lets the
+  // greedy class eat the "/" of a self-closing cell, so the match falls through to the
+  // ">...</c>" branch and swallows the NEXT cell with it. Two cells counted as one.
+  const cells = sheet.match(/<c\b[^>]*\/>|<c\b[^>]*>[\s\S]*?<\/c>/g) ?? [];
+  const expected = columns.length * (rows.length + 1);
+  ok("a cell exists for every position in the table: " + cells.length + " of " + expected,
+    cells.length === expected, { got: cells.length, expected });
+  ok("...and every one carries a style, so every one is ruled",
+    cells.every((c) => /\bs="\d+"/.test(c)), cells.filter((c) => !/\bs="\d+"/.test(c)).slice(0, 2));
+
+  const blanks = cells.filter((c) => !/<v/.test(c) && !/<f/.test(c));
+  ok("the empty ones are present but hold nothing (" + blanks.length + " of them)", blanks.length > 0);
+  ok("...not one is an empty STRING — ISBLANK and COUNTA still tell the truth",
+    !/<v><\/v>/.test(sheet) && !/<v\/>/.test(sheet));
+  ok("...each is exactly a ruled, empty cell",
+    blanks.every((c) => /^<c r="[A-Z]+\d+" s="\d+"\/>$/.test(c)), blanks.slice(0, 2));
+
+  // "Stran" has no counterpart in the app and is always empty — it must still be ruled
+  const stranCol = XLSX.utils.encode_col(columns.findIndex((c) => c.key === "stran"));
+  ok("the always-empty Stran column is ruled on the data row (" + stranCol + "2)",
+    new RegExp('<c r="' + stranCol + '2" s="\\d+"\\/>').test(sheet));
+  ok("...and Excel still reports it as blank", back[stranCol + "2"] === undefined);
+
+  const ref = /<dimension ref="([^"]+)"/.exec(sheet);
+  ok("the declared table size spans the whole rectangle: " + (ref && ref[1]),
+    !!ref && ref[1] === "A1:" + XLSX.utils.encode_col(columns.length - 1) + (rows.length + 1), ref && ref[1]);
+}
 
 console.log("\n" + pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
