@@ -119,4 +119,41 @@ add('table: a blank EAN row and a wrapped cell together', 3, [
   '| ' + B[2] + ' | ARTIST C | TITLE C | LP |',
 ].join('\n'), 'the blank-identifier row counts, the wrapped one does not');
 
+// ---- 13. TWO consignment tables, each with an IBAN in the footer (the Croatia Records shape)
+// The footer prints IBANs — "HR8223600001101213510" — whose inner 14-digit run a bare
+// /\d{12,14}/ counts as a barcode. With two attachment headings that pushes the barcode
+// count past the table total and routes the whole thing to the heading splitter, which can
+// only cut at a heading and so emits two mega-parts. A barcode is a STANDALONE token; an
+// IBAN is not one. Real release count = 24, and the footer numbers must not add to it.
+// (client, NIKA OTPR 648/649, 2026-09-09)
+const bc = i => '3850126' + String(100000 + i);      // distinct standalone 13-digit barcodes
+const crow = i => '| ' + i + ' | ' + bc(i) + ' | ARTIST ' + i + ' - TITLE ' + i + ' (LP) | kom | | 5,00 | 25 | 18,00 | 90,00 | 30,00 |';
+const cfooter = [
+  'Ukupno prije poreza: 127,00', '', '2.568,00', '',
+  'Zagrebačka banka d.d. Zagreb IBAN: HR8223600001101213510 *',
+  'Privredna banka d.d. Zagreb IBAN: HR7623400091110046200 *',
+  'Društvo je upisano u Sudski registar pod MBS: 080034452 * temeljni kapital: 22.813.200 HRK * izdanih dionica: 114.066',
+].join('\n');
+const ctable = (from, to) => ['| R. | Bar kod | Naziv artikla | J.m. | Serijski | Količina | PDV % | Cijena | Iznos | MP cijena |',
+  '| -- | -- | -- | -- | -- | -- | -- | -- | -- | -- |']
+  .concat(Array.from({ length: to - from + 1 }, (_, k) => crow(from + k))).join('\n');
+add('two consignment tables, each with an IBAN footer', 24, [
+  '## Attachment: NIKA OTPR 648.pdf', '', 'Izdatnica na komisiju broj: 648', '', ctable(1, 12), '', cfooter,
+  '', '---', '',
+  '## Attachment: NIKA OTPR 649.pdf', '', 'Izdatnica na komisiju broj: 649', '', ctable(13, 24), '', cfooter,
+].join('\n'), 'an IBAN in the footer is not a barcode, and must not add to the release count');
+
+// ---- 14. a single supplier table whose footer carries an IBAN and a company reg number
+// The regression guard for shape 13: one table, footer numbers present. The count is the
+// table's rows, never the footer numbers, whether or not the router is involved.
+add('single table with an IBAN + reg number in the footer', 3, [
+  '| EAN | Artist | Title | Format |',
+  '| --- | --- | --- | --- |',
+  '| ' + B[0] + ' | ARTIST A | TITLE A | LP |',
+  '| ' + B[1] + ' | ARTIST B | TITLE B | CD |',
+  '| ' + B[2] + ' | ARTIST C | TITLE C | LP |',
+  '',
+  'IBAN: HR8223600001101213510  reg. 080034452  kapital 22.813.200',
+].join('\n'), 'footer numbers (IBAN, registration, capital) are never releases');
+
 module.exports = shapes;
