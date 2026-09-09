@@ -130,30 +130,20 @@ function num(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** ISO date -> DD.MM.YYYY, the format used throughout the client's catalogue. */
+/**
+ * ISO date -> DD.MM.YYYY with NO leading zeros: 2026-10-02 -> 2.10.2026, the format used
+ * throughout the client's catalogue.
+ *
+ * The on-screen catalog AND the xlsx/csv export share this one formatter (client,
+ * 2026-09-09). The export briefly had a zero-padded variant of its own — formatDmyPadded,
+ * added 2026-09-07 when "8.10.2027" looked ragged in the column — but the client asked for
+ * the file to read exactly like the app, so the two audiences are one formatter again and
+ * the leading zeros are gone from the export too. Storage stays ISO and Hermes still
+ * receives ISO, so this is display-only.
+ */
 export function formatDmy(value: unknown): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ""));
-  // Day/month without leading zeros, per the client: 2026-10-02 -> 2.10.2026 (not
-  // 02.10.2026). Used by both the on-screen catalog and the xlsx/csv export. Storage
-  // stays ISO and Hermes still receives ISO, so this is display-only.
   return m ? `${+m[3]}.${+m[2]}.${m[1]}` : null;
-}
-
-/**
- * ISO date -> DD.MM.YYYY, zero-padded. The EXPORT's release-date format.
- *
- * The client asked for padding on 2026-09-07 because "8.10.2027" came out ragged in
- * the column, and for dots rather than slashes on 2026-09-09 — so the separator is
- * back to the one they use everywhere else and only the padding differs.
- *
- * Which is exactly why this stays separate from `formatDmy`, the on-screen format,
- * even now that the two look nearly identical: the screen is deliberately unpadded
- * ("8.10.2027") and the export deliberately is not ("08.10.2027"). One function
- * serving both is how one of them silently gets changed.
- */
-export function formatDmyPadded(value: unknown): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ""));
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : null;
 }
 
 /**
@@ -275,7 +265,7 @@ export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
     value: (r) =>
       String(r.release_date ?? "").slice(0, 10) === "2099-12-31"
         ? "TBD"
-        : formatDmyPadded(r.release_date),
+        : formatDmy(r.release_date),
   },
   // Both columns headed "Our price €" show the currency and stay real numbers, so the
   // client can still sum and calculate on them (client, 2026-09-07).
