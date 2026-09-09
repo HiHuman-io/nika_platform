@@ -5,7 +5,11 @@ const B = ['0887828025824', '5054429211894', '3850126115200', '0602465795776', '
   '0081227800543', '0081227800499', '0081227800505', '0081227800512', '0081227800536'];
 
 const shapes = [];
-const add = (name, releases, text, why) => shapes.push({ name, releases, text, why });
+// `opts.floor: true` marks a shape whose true release count CANNOT be asserted as an exact
+// row count (a barcode lives in prose, outside any table). It is excluded from the
+// told===real scoreboard and judged only by the safety properties (see count-shapes.js):
+// the count may sit below the truth, but it must never be announced as "EXACTLY".
+const add = (name, releases, text, why, opts) => shapes.push(Object.assign({ name, releases, text, why }, opts || {}));
 
 // ---- 1. a markdown price-list table, every row with a barcode (the ordinary case)
 add('table: every row has a barcode', 4, [
@@ -155,5 +159,23 @@ add('single table with an IBAN + reg number in the footer', 3, [
   '',
   'IBAN: HR8223600001101213510  reg. 080034452  kapital 22.813.200',
 ].join('\n'), 'footer numbers (IBAN, registration, capital) are never releases');
+
+// ---- 16. a barcode STRANDED IN PROSE above a table (the I-DI "Invoice IDI" shape)
+// I-DI printed a live album as a free-text line — "5056083208579  Yes  Hanns-Martin-Schleyer-
+// Halle..." — above a table LlamaParse could not align. That barcode is a real release but
+// sits in no table row, so the row count (3) is below the truth (4). The row count staying
+// low is acceptable — what is NOT is announcing it as "EXACTLY 3", which orders the model to
+// return three and drop the fourth (Mare: 5060572510005 lost, 2026-09-09). floor:true, so it
+// is judged only by the safety rule: an undercounted source must never be called EXACTLY.
+add('a barcode stranded in prose above a table', 4, [
+  '# Invoice',
+  '',
+  '5056083208579  Yes  Live In Stuttgart 1991  Germany.',
+  '| Barcode | Artist | Title | Format |',
+  '| --- | --- | --- | --- |',
+  '| ' + B[0] + ' | ARTIST A | TITLE A | CD |',
+  '| ' + B[1] + ' | ARTIST B | TITLE B | CD |',
+  '| ' + B[2] + ' | ARTIST C | TITLE C | CD |',
+].join('\n'), 'a barcode outside the table forbids an EXACTLY count', { floor: true });
 
 module.exports = shapes;
