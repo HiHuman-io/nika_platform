@@ -10,7 +10,7 @@ import {
   addQuotePrefixToTextStyles,
   blankStyledCellsToEmpty,
   formatDmy,
-  formatDmySlash,
+  formatDmyPadded,
 } from "./catalog-export.ts";
 
 let pass = 0, fail = 0;
@@ -32,17 +32,17 @@ console.log("\n=== (c) EAN and the codes are marked as quoted text ===");
 for (const k of ["ean", "code", "catalogue_no"]) ok(k + " -> quoteText", spec(k).quoteText === true);
 ok("nothing else is", CATALOG_EXPORT_COLUMNS.filter((c) => c.quoteText).length === 3);
 
-console.log("\n=== (d) release date is DD/MM/YYYY, right aligned ===");
-ok("2027-10-08 -> " + formatDmySlash("2027-10-08"), formatDmySlash("2027-10-08") === "08/10/2027");
-ok("2026-01-02 -> " + formatDmySlash("2026-01-02"), formatDmySlash("2026-01-02") === "02/01/2026");
-ok("a timestamp still works", formatDmySlash("2027-10-08T00:00:00Z") === "08/10/2027");
-ok("rubbish -> null", formatDmySlash("nope") === null && formatDmySlash(null) === null);
+console.log("\n=== (d) release date is DD.MM.YYYY, right aligned ===");
+ok("2027-10-08 -> " + formatDmyPadded("2027-10-08"), formatDmyPadded("2027-10-08") === "08.10.2027");
+ok("2026-01-02 -> " + formatDmyPadded("2026-01-02"), formatDmyPadded("2026-01-02") === "02.01.2026");
+ok("a timestamp still works", formatDmyPadded("2027-10-08T00:00:00Z") === "08.10.2027");
+ok("rubbish -> null", formatDmyPadded("nope") === null && formatDmyPadded(null) === null);
 ok("the ON-SCREEN format is untouched (dots, unpadded)", formatDmy("2027-10-08") === "8.10.2027");
 ok("the column is right aligned", spec("release_date").align === "right");
 ok("the 2099 sentinel still reads TBD",
   spec("release_date").value({ release_date: "2099-12-31" }) === "TBD");
 ok("a real date goes through the new format",
-  spec("release_date").value({ release_date: "2027-10-08" }) === "08/10/2027");
+  spec("release_date").value({ release_date: "2027-10-08" }) === "08.10.2027");
 
 console.log("\n=== (e) both \"Our price €\" columns carry the euro format ===");
 for (const k of ["our_price", "our_price_repeat"]) {
@@ -133,7 +133,7 @@ ok("(a) the word 'in progress' appears nowhere in the sheet", !/in.progress/i.te
 const back = XLSX.read(bytes, { type: "array" }).Sheets.Export;
 const at = (k) => back[XLSX.utils.encode_col(columns.findIndex((c) => c.key === k)) + "2"];
 ok("(c) the EAN is still text, leading zero intact: " + at("ean").v, at("ean").t === "s" && at("ean").v === "0603497803590");
-ok("(d) the date reads " + at("release_date").v, at("release_date").v === "08/10/2027");
+ok("(d) the date reads " + at("release_date").v, at("release_date").v === "08.10.2027");
 ok("(e) the price is a NUMBER, so it sums: " + at("our_price").v, at("our_price").t === "n" && at("our_price").v === 7.5);
 
 console.log("\n=== (b) the WHOLE rectangle is ruled, empty cells included ===");

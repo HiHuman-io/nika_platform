@@ -140,17 +140,20 @@ export function formatDmy(value: unknown): string | null {
 }
 
 /**
- * ISO date -> DD/MM/YYYY, zero-padded. The EXPORT's release-date format (client,
- * 2026-09-07): "8.10.2027" was coming out ragged, and a padded, slashed date lines
- * up in the column.
+ * ISO date -> DD.MM.YYYY, zero-padded. The EXPORT's release-date format.
  *
- * Deliberately separate from `formatDmy`, which the on-screen catalog uses and the
- * client asked for unpadded with dots back in August. Two audiences, two formats;
- * one function serving both is how one of them silently gets changed.
+ * The client asked for padding on 2026-09-07 because "8.10.2027" came out ragged in
+ * the column, and for dots rather than slashes on 2026-09-09 — so the separator is
+ * back to the one they use everywhere else and only the padding differs.
+ *
+ * Which is exactly why this stays separate from `formatDmy`, the on-screen format,
+ * even now that the two look nearly identical: the screen is deliberately unpadded
+ * ("8.10.2027") and the export deliberately is not ("08.10.2027"). One function
+ * serving both is how one of them silently gets changed.
  */
-export function formatDmySlash(value: unknown): string | null {
+export function formatDmyPadded(value: unknown): string | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ""));
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : null;
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : null;
 }
 
 /**
@@ -272,7 +275,7 @@ export const CATALOG_EXPORT_COLUMNS: ExportColumnSpec[] = [
     value: (r) =>
       String(r.release_date ?? "").slice(0, 10) === "2099-12-31"
         ? "TBD"
-        : formatDmySlash(r.release_date),
+        : formatDmyPadded(r.release_date),
   },
   // Both columns headed "Our price €" show the currency and stay real numbers, so the
   // client can still sum and calculate on them (client, 2026-09-07).
