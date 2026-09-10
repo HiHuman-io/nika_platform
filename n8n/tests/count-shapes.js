@@ -7,15 +7,22 @@
 // Chunk Source again, run this. A change that improves the document in front of you and
 // lowers this score has not fixed anything.
 //
-// TWO SAFETY PROPERTIES matter more than the score, and are asserted here as a hard gate
+// FOUR SAFETY PROPERTIES matter more than the score, and are asserted here as a hard gate
 // (non-zero exit on violation):
 //   1. the count must NEVER exceed the real one — that orders the model to INVENT a row
 //      (v54: an IBAN's inner 14-digit run counted as a barcode and overcounted the order);
 //   2. a source may be announced "EXACTLY n" ONLY when the count equals the truth. Announcing
 //      "exactly" while undercounting orders the model to DROP a real row (v55: a barcode
-//      stranded in prose left the row count one short, yet the tables still read as clean).
+//      stranded in prose left the row count one short, yet the tables still read as clean);
+//   3. every barcode the document prints is NAMED in exactly one part's note — never left
+//      unnamed, and never named twice. v58: part 4 of the I-DI invoice was told "AT LEAST 12"
+//      and nothing more, held 7 rows that read cleanly plus a page the parser had mangled, and
+//      returned the 7. A count is an order the model can satisfy by miscounting; a list is an
+//      order per item. Named twice would be worse still — the same release back as two lines;
+//   4. a part's asserted count is never BELOW the number of identifiers its own note names.
+//      "At least 7" alongside a list of 12 is a self-contradicting instruction.
 // A `floor:true` shape (its true count cannot be a row count) is exempt from the scoreboard
-// but still bound by both safety properties.
+// but still bound by all four safety properties.
 const fs = require('fs'), vm = require('vm');
 const P = 'C:/Users/User/Desktop/nika-platform/';
 const shapes = require('./shapes.js');
@@ -38,6 +45,26 @@ for (const s of shapes) {
   // safety properties (every shape, floor or not)
   if (told > s.releases) violations.push(s.name + ': OVERCOUNTS (told ' + told + ' > real ' + s.releases + ') — orders invention');
   if (hasExactly && told !== s.releases) violations.push(s.name + ': announced EXACTLY while told(' + told + ')!=real(' + s.releases + ') — orders a drop/invent');
+  // v58 properties 3 and 4: the identifiers the notes name
+  const named = {};
+  for (const p of parts) {
+    const m = String(p.chunk_note || '').match(/identifiers printed in this part are: ([^.]*)\./);
+    const list = m ? m[1].split(',').map(x => x.trim()).filter(Boolean) : [];
+    for (const c of list) { const k = c.replace(/^0+/, ''); named[k] = (named[k] || 0) + 1; }
+    if (list.length > (p.chunk_rows || 0)) {
+      violations.push(s.name + ': part ' + p.chunk_index + ' names ' + list.length + ' identifiers but asserts only ' + p.chunk_rows);
+    }
+  }
+  const printed = {};
+  for (const raw of (s.text.match(/(?<![0-9A-Za-z])\d{12,14}(?![0-9])/g) || [])) printed[raw.replace(/^0+/, '')] = raw;
+  const distinctPrinted = Object.keys(printed);
+  if (distinctPrinted.length && distinctPrinted.length <= 40) {
+    for (const k of distinctPrinted) {
+      const n = named[k] || 0;
+      if (n === 0) violations.push(s.name + ': barcode ' + printed[k] + ' is printed but NAMED IN NO PART note');
+      if (n > 1) violations.push(s.name + ': barcode ' + printed[k] + ' is named in ' + n + ' parts — orders it back twice');
+    }
+  }
   if (s.floor) { floors.push({ s, told, hasExactly }); continue; }
   scored++;
   const v = told === s.releases ? 'ok' : (told < s.releases ? 'UNDERCOUNTS by ' + (s.releases - told) : 'OVERCOUNTS by ' + (told - s.releases));
@@ -57,6 +84,7 @@ if (floors.length) {
 console.log('\n  SAFETY PROPERTIES:');
 if (!violations.length) {
   console.log('  ok  no shape overcounts, and no undercounted shape is announced EXACTLY');
+  console.log('  ok  every printed barcode is named in exactly one part, and no part names more than it asserts');
 } else {
   for (const v of violations) console.log('  FAIL  ' + v);
   console.log('\n  ' + violations.length + ' SAFETY VIOLATION(S).');

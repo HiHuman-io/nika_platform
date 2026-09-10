@@ -26,6 +26,7 @@ const attachments_text = [
   '',
   '5056083208579  Live In Stuttgart 1991  Germany.',
   '| 8032484011830 | VARIOUS ARTISTS | SUBURBIA COMPILATION | 1 | HOUSE | CD | MUSIC | 1 | 2,99 |',
+  '| 2,99 | THE ESSENTIAL HOUSE COLLECTION |',   // v58: the row wraps onto a second line
 ].join('\n');
 
 const chunks = run(node('Chunk Source'), { $input: { all: () => [{ json: { message_id: 'M', thread_id: 'M', subject: 'Invoice.pdf', from: null, date: '2026-09-09T10:00:00Z', body: '', attachments_text, source_kind: 'manual' } }] } });
@@ -62,6 +63,11 @@ ok('the mangled-table barcode 8032484011830 is recovered', !!stubByEan['80324840
 ok('a table stub reads its artist from the source line', stubByEan['8032484011830'] && stubByEan['8032484011830'].artist === 'VARIOUS ARTISTS');
 ok('a stub is flagged for review, never sent blindly', stubs.every(s => s.extra.needs_review === true && s.status === 'in_progress'));
 ok('a stub never invents a barcode (EAN copied from source, 13 digits)', stubs.every(s => /^\d{13}$/.test(String(s.ean))));
+// v58: the note quotes the FULLEST rendering of the barcode's own line, so a reviewer can
+// complete the stub from the note instead of reopening the PDF. The raw parse broke this
+// record across two lines; the rewritten one holds all of it.
+ok('a stub quotes the whole record, not the fragment the parser left',
+  stubByEan['8032484011830'] && /THE ESSENTIAL HOUSE COLLECTION/.test(String(stubByEan['8032484011830'].extra.review_note)));
 ok('a completed run creates NO stubs', (function () {
   const ai2 = chunks.map((c, i) => ({ output: JSON.stringify({ document_type: 'invoice', is_catalog_relevant: true, label: 'I-DI MUSIC', items: i === 0 ? cleanItems.concat([
     { artist_raw: 'V', artist: 'VARIOUS ARTISTS', title: 'SUBURBIA COMPILATION', format: 'CD', unit: 1, ean: '8032484011830', rock_bottom: 2.99, label: 'I-DI MUSIC', calculation_group: '1' },

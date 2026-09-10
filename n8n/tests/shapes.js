@@ -181,4 +181,28 @@ add('a barcode stranded in prose above a table', 4, [
 // barcode a release is an inference.
 ].join('\n'), 'a barcode outside the table joins the floor and forbids an EXACTLY count');
 
+// ---- 17. AN UNALIGNED TABLE: the real page 2 of I-DI's Invoice_IDI.pdf, shortened.
+// LlamaParse could not find this table's columns. It made the first product row the HEADER
+// (the tail of the release printed above the table), and split each remaining row across two
+// lines, so a cell of one release sits in the next line's first column. Under v57 the count
+// was right — 5 — and the model returned NONE of the five, because what it was shown was a
+// header row and eight fragments (client, 2026-09-10). v58 rewrites such a table one line per
+// release, using the same continuation rule the counter already applies, and names the
+// barcodes in the note. The count must not move: 4 in the table plus 1 above it.
+// The trailing "| 27 | 369,73 |" is the invoice total — no letters in it, so it must stay on
+// its own line and never be folded onto the release above.
+add('an unaligned table whose rows wrap onto a second line', 5, [
+  '5056083208579  Yes  Hanns-Martin-Schleyer-Halle. Stuttgart. 3  Germany.',
+  '| CD            | 31St May         | 1                                   | 1991 | 9,99   | 9,99          |    |',
+  '| ------------- | ---------------- | ----------------------------------- | ---- | ------ | ------------- | -- |',
+  '| 8032484011830 | VARIOUS ARTISTS  | SUBURBIA COMPILATION - ESSENTIAL    | 1    | HOUSE  | CD            | 1  |',
+  '| 5060420687392 | MUSIC PROTECTION | KXRM25W - WITH 40PP - WOODEN RECORD | 1    | AV-ACC | STORAGE CRATE | ON |',
+  '| 35,99         | 100 LPS - WHITEWASH - RETRO MUSIQU |                   |      |        |               |    |',
+  '| 7111606534882 | MUSIC PROTECTION | KXRM22 - 35 PPS - 7 INCH ALUMINIUM  | 1    | VINYL  | AV-ACC        | 1  |',
+  '| 35 SINGLES    | 16,99            | - SILVER - RETRO MUSIQUE            |      |        |               |    |',
+  '| 5060572510005 | MUSIC PROTECTION | KXRM25K - WITH PPS - WOODEN RECORD  | 1    | AV-ACC | STORAGE CRATE | ON |',
+  '| 69,98         | 100 LPS - RETRO MUSIQUE |                              |      |        |               |    |',
+  '| 27            | 369,73           |                                     |      |        |               |    |',
+].join('\n'), 'the parser lost the column boundaries; the release count must survive it');
+
 module.exports = shapes;
