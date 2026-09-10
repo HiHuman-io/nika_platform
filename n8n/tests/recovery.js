@@ -138,14 +138,22 @@ const EMPTY = [{ ean: '5056083208579', artist: null, title: '   ', format: 'CD',
 ok('an answer with neither artist nor title is discarded, so the stub survives to explain itself',
   !itemsOf(merge(req, answer(EMPTY))).some(i => i.recovered));
 
-// ---- and it can never cost the run its rows
+// ---- and it can never cost the run its rows.
+// v61 stamps each emitted item with the key of the chunk it came from, because n8n can no longer
+// trace that itself across this node (see item-pairing.js). That key is the only thing the merge
+// may ever add to an item it did not touch, so it is stripped before comparing.
+const bare = arr => JSON.stringify(arr.map(j => { const o = Object.assign({}, j); delete o._chunk_key; return o; }));
 const untouched = JSON.stringify(firstPass);
-ok('a failed recovery call leaves the first pass output byte-identical',
-  JSON.stringify(merge(req, [{ error: 'the model timed out' }])) === untouched);
-ok('an empty answer leaves it byte-identical', JSON.stringify(merge(req, answer([]))) === untouched);
-ok('garbage in the answer leaves it byte-identical', JSON.stringify(merge(req, [{ output: 'I could not read these lines.' }])) === untouched);
-ok('the no-recovery-needed branch leaves it byte-identical',
-  JSON.stringify(merge(reqNone, [{ json: reqNone }])) === JSON.stringify(complete));
+ok('a failed recovery call leaves the first pass output unchanged',
+  bare(merge(req, [{ error: 'the model timed out' }])) === untouched, bare(merge(req, [{ error: 'x' }])));
+ok('an empty answer leaves it unchanged', bare(merge(req, answer([]))) === untouched);
+ok('garbage in the answer leaves it unchanged', bare(merge(req, [{ output: 'I could not read these lines.' }])) === untouched);
+ok('the no-recovery-needed branch leaves it unchanged',
+  bare(merge(reqNone, [{ json: reqNone }])) === JSON.stringify(complete));
+// ...and the pairing key IS carried, on the untouched path as much as the merged one
+ok('every item carries the chunk it came from, even when nothing was recovered',
+  merge(req, answer([])).every((j, i) => j._chunk_key === (req.srcKeys || [])[i]),
+  JSON.stringify(merge(req, answer([])).map(j => j._chunk_key)));
 
 // ---------------------------------------------------------------- 3. end to end through Build Catalog Rows
 const nodeData = {
