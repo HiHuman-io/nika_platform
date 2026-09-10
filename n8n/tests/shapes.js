@@ -176,6 +176,9 @@ add('a barcode stranded in prose above a table', 4, [
   '| ' + B[0] + ' | ARTIST A | TITLE A | CD |',
   '| ' + B[1] + ' | ARTIST B | TITLE B | CD |',
   '| ' + B[2] + ' | ARTIST C | TITLE C | CD |',
-].join('\n'), 'a barcode outside the table forbids an EXACTLY count', { floor: true });
+// v57 counts it: a barcode outside every table is STRANDED and joins the floor, so the count
+// is the truth (4) again — but it stays a FLOOR, never "EXACTLY", because calling a loose
+// barcode a release is an inference.
+].join('\n'), 'a barcode outside the table joins the floor and forbids an EXACTLY count');
 
 module.exports = shapes;
