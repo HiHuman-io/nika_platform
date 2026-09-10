@@ -1,0 +1,63 @@
+
+# Barcode
+
+| Barcode       | Artist                            | Title                                                                           | Units | Format | Shelf | Price | skupaj | |
+| ------------- | --------------------------------- | ------------------------------------------------------------------------------- | ----- | ------ | ----- | ----- | ------ |---|
+| 0198029909012 | Pink Floyd                        | Live From The Los Angeles Sports Arena                                          | 4     | LP     | 0     | 66,99 | 0,00   | |
+| 0602557703887 | ENO BRIAN                         | ANOTHER GREEN WORLD                                                             | 1     | LP     | 0     | 22,99 | 0,00   | |
+| 5018791120895 | Senser                            | Breed                                                                           | 1     | LP     | 0     | 6,99  | 0,00   | |
+| 5053792501915 | Bee Gees                          | Live On Air 1967 - 1968                                                         | 1     | CD     | 0     | 10,49 | 0,00   | |
+| 5051890083722 | Pop Masina                        | Na Izvoru Svetlosti                                                             | 1     | CD     | 0     | 7,99  | 0,00   | |
+| 5292317218420 | Guns N' Roses                     | Brazil '91                                                                      | 2     | CD     | 0     | 11,49 | 0,00   | |
+| 0194399338025 | Movie                             | Esther Abrami - Esther Abrami Cd                                                | 1     | CD     | 0     | 9,49  | 0,00   | |
+| 0042283253025 | Dio                               | Dream Evil                                                                      | 1     | CD     | 0     | 6,49  | 0,00   | |
+| 0826853220200 | Nancy Sinatra                     | Sugar                                                                           | 1     | CD     | 0     | 22,49 | 0,00   | |
+| 0826853019828 | Sinatra, Nancy & Hazlewood, Nancy | Lee & Lee                                                                       | 1     | CD     | 0     | 23,49 | 0,00   | |
+| 0720841302018 | Ezra Collective                   | Where I'm Meant To Be (2Lp)                                                     | 2     | LP     | 0     | 22,99 | 0,00   | |
+| 5051011945328 | Sheila                            | Juste Comme                                                                     | 1     | CD     | 0     | 5,49  | 0,00   | |
+| 0602527799711 | Queen                             | A Kind Of Magic                                                                 | 1     | CD     | 0     | 12,99 | 0,00   | |
+| 0781676757329 | Pig Destroyer                     | Terrifyer (20Th Anniversary Reissue)                                            | 2     | CD     | 0     | 13,49 | 0,00   | |
+| 0602527322100 | Dione Aura                        | Columbine                                                                       | 1     | CD     | 0     | 9,49  | 0,00   | |
+| 4050538373691 | Megadeth                          | System Has Failed (Remaster)                                                    | 1     | CD     | 0     | 10,99 | 0,00   | |
+| 0803341610446 | Iron Maiden                       | Japan 81 (Red W/ White Splatter Vinyl)                                          | 1     | LP     | 0     | 26,99 | 0,00   | |
+| 0199584492926 | Prince                            | Timeless                                                                        | 1     | CD     | 0     | 10,99 | 0,00   | |
+| 0769152440057 | Cramps                            | Gravest Gravy Clear Nude Vinyl                                                  | 1     | LP     | 0     | 32,99 | 0,00   | |
+| 0199957474771 | Spiro Sienna-Visitor              | Spiro Sienna-Visitor                                                            | 1     | LP     | 0     | 28,99 | 0,00   | |
+| 0803343121186 | MUSIC PROTECTION                  | KXRM25K WOODEN RECORD STORAGE ON WHEELS FOR 100 LPS - RETRO                     | 1     | AV-ACC | 0     | 32,99 | 0,00   | |
+| 0803341501096 | MUSIC PROTECTION                  | KXRM25B - WITH 40PP - WOODEN RECORD STORAGE CRATE ON WHEELS FOR 100 LPS - BLACK | 1     | AV-ACC | 0     | 35,99 | 0,00   | |
+| 4260017599010 | Manuel Göttsching                 | Inventions For Electric Guitar (180G Lp Remaster)                               | 1     | LP     | 1     | 28,99 | 28,99  | |
+| 0199584420523 | Bring Me The Horizon              | Count Your Blessings | Repented                                                 | 1     | CD     | 1     | 13,49 | 13,49  |
+| 0198029001822 | Esther Abrami                     | Women                                                                           | 1     | CD     | 1     | 10,49 | 10,49  | |
+| 8019991859469 | Dionigi                           | Those Lights                                                                    | 1     | CD     | 1     | 4,49  | 4,49   | |
+| 0880882536527 | Jerry Garcia Band                 | Garcialive Vol. 19: October 31St / 1992 - Oakland Coliseum Arena                | 2     | CD     | 1     | 9,49  | 9,49   | |
+| 0633367911117 | KING CRIMSON                      | IN THE COURT OF THE CRIMSON KING                                                | 1     | LP     | 1     | 22,99 | 22,99  | |
+| 0889853768714 | PEARL JAM                         | TEN                                                                             | 1     | LP     | 1     | 20,99 | 20,99  | |
+| 0029667428422 | CORPORATION THE                   | GET ON OUR SWING/HASSELS IN MY MIND                                             | 1     | CD     | 1     | 9,99  | 9,99   | |
+| 0029667423021 | COUNT FIVE                        | PSYCHOTIC REVELATION: THE ULTIMATE COUNT FIVE                                   | 1     | CD     | 1     | 9,99  | 9,99   | |
+| 0029667047425 | COUNTRY JOE & THE FISH            | ELECTRIC MUSIC FOR THE MIND AND BODY                                            | 2     | CD     | 1     | 9,99  | 9,99   | |
+| 0029667056724 | COUNTRY JOE & THE FISH            | I-FEEL-LIKE-I'M-FIXIN'-TO-DIE                                                   | 2     | CD     | 1     | 9,99  | 9,99   | |
+| 0029667427920 | MOJO MEN THE                      | NOT TOO OLD TO START CRYIN': THE LOST 1966 MASTERS                              | 1     | CD     | 1     | 9,99  | 9,99   | |
+| 0889854629724 | NEW RIDERS OF THE PURPLE ORIGINAL | SAGE ALBUM CLASSICS                                                             | 5     | CD     | 1     | 10,99 | 10,99  | |
+| 0029667418829 | SONS OF CHAMPLIN THE              | FAT CITY                                                                        | 1     | CD     | 1     | 9,99  | 9,99   | |
+| 8714092755015 | WAITS TOM                         | BRAWLERS (REMASTERED)                                                           | 2     | LP     | 1     | 21,99 | 21,99  | |
+| 3856008312624 | GUSTAFI                           | F.F.                                                                            | 1     | CD     | 1     | 3,99  | 3,99   | |
+| 0602577153167 | Buddy Holly/royal Philharmonic    | True Love Ways                                                                  | 1     | CD     | 1     | 5,99  | 5,99   | |
+| 5016641115787 | Mick Jagger                       | The Rolling Stone                                                               | 1     | DVD    | 1     | 3,49  | 3,49   | |
+| 0602435993010 | Demi Lovato                       | Dancing With The Devil The Art Of Starting Over                                 | 1     | CD     | 1     | 4,49  | 4,49   | |
+| 0196588809620 | Shakira                           | Las Mujeres Ya No Lloran                                                        | 1     | CD     | 1     | 4,99  | 4,99   | |
+| 3596971133221 | Mega Celtique                     | Alan Stivell - Denez Prigent - Rua ?                                            | 4     | CD     | 1     | 6,99  | 6,99   | |
+
+
+
+5056083208579  Yes  Hanns-Martin-Schleyer-Halle. Stuttgart. 3  Germany.
+| CD            | 31St May                           | 1                                   | 1991 | 9,99   | 9,99          |              |    |       |            |
+| ------------- | ---------------------------------- | ----------------------------------- | ---- | ------ | ------------- | ------------ | -- | ----- | ---------- |
+| 8032484011830 | VARIOUS ARTISTS                    | SUBURBIA COMPILATION - ESSENTIAL    | 1    | HOUSE  | CD            | MUSIC        | 1  | 2,99  | 2,99       |
+| 5060420687392 | MUSIC PROTECTION                   | KXRM25W - WITH 40PP - WOODEN RECORD | 1    | AV-ACC | STORAGE CRATE | 1            | ON | 35,99 | WHEELS FOR |
+| 35,99         | 100 LPS - WHITEWASH - RETRO MUSIQU |                                     |      |        |               |              |    |       |            |
+| 7111606534882 | MUSIC PROTECTION                   | KXRM22 - 35 PPS - 7 INCH ALUMINIUM  | 1    | VINYL  | AV-ACC        | STORAGE CASE | 1  | FOR   | 16,99      |
+| 35 SINGLES    | 16,99                              | - SILVER - RETRO MUSIQUE            |      |        |               |              |    |       |            |
+| 5060572510005 | MUSIC PROTECTION                   | KXRM25K - WITH PPS - WOODEN RECORD  | 1    | AV-ACC | STORAGE CRATE | 2            | ON | 34,99 | WHEELS FOR |
+| 69,98         | 100 LPS - RETRO MUSIQUE            |                                     |      |        |               |              |    |       |            |
+| 27            | 369,73                             |                                     |      |        |               |              |    |       |            |
+

@@ -1,0 +1,59 @@
+Izdatnica na komisi u bro : 648
+Datum: 7.09.2026
+
+Kupac:
+
+Veza na povrat iz komisi e: -
+
+Porezni bro : SI14518538
+
+Nacin otpreme: -
+
+NIKA D.O.O.
+
+Obrada dokumenta: Maria Ca o
+
+KNEZO A 11
+
+Tel/Fax komitenta: (+386) 38601546633, (0)1-546-63-20
+
+1000 Ljubljana
+
+SLOVENIA
+
+| R. | Bar kod       | Naziv artikla | Seri ski/lot bro | J.m. | Kolicina | PDV % | Ci ena | Iznos | Preporucena MP ci ena |
+| -- | ------------- | ------------- | ---------------- | ---- | -------- | ----- | ------ | ----- | --------------------- |
+| 1 | 3850126115259 | AZRA - RAVNO DO DNA (LP) | kom | | 5,00 | 25 | 24,00 | 120,00 | 40,00 |
+| 2 | 3850126112029 | BIJELO DUGME - SINGL PLOCE 1974-1980 (LP) | kom | | 5,00 | 25 | 18,00 | 90,00 | 30,00 |
+| 3 | 3850126192830 | DENIS & DENIS - CUVAJ SE! (LP) | kom | | 2,00 | 25 | 18,00 | 36,00 | 30,00 |
+| 4 | 3850126195640 | DIVLJE JAGODE - DIVLJE JAGODE (LP) | kom | | 3,00 | 25 | 18,00 | 54,00 | 30,00 |
+| 5 | 3850126182329 | HLADNO PIVO - GAD (LP) | kom | | 3,00 | 25 | 18,00 | 54,00 | 30,00 |
+| 6 | 3850124024182 | LEB I SOL - I TAKA NATAKA (LP) | kom | | 5,00 | 25 | 32,00 | 160,00 | 49,00 |
+| 7 | 3850126143504 | LEB I SOL - KAO KAKAO (LP) | kom | | 5,00 | 25 | 18,00 | 90,00 | 30,00 |
+| 8 | 3850126198795 | LJUPKA I IVICA - 25 GREATEST HITS (LP) | kom | | 2,00 | 25 | 18,00 | 36,00 | 30,00 |
+| 9 | 3850126177943 | OLIVER DRAGOJEVIC - 25 GREATEST HITS (LP) | kom | | 20,00 | 25 | 18,00 | 360,00 | 30,00 |
+| 10 | 3850126120628 | PARNI VALJAK - BU ENJE (LP) | kom | | 5,00 | 25 | 15,00 | 75,00 | 25,00 |
+| 11 | 3850126136698 | PARNI VALJAK - VRIJEME LJUBAVI (LP) | kom | | 15,00 | 25 | 18,00 | 270,00 | 30,00 |
+| 12 | 3850126193431 | PARTIBREJKERS - PARTIBREJKERS (LP) | kom | | 2,00 | 25 | 18,00 | 36,00 | 30,00 |
+| 13 | 3850126106837 | PRLJAVO KAZALISTE - 30 GODINA OD KONC.NA TRGU (LP) | kom | | 5,00 | 25 | 24,00 | 120,00 | 40,00 |
+| 14 | 3850126199235 | PRO ARTE - PRUZI MI RUKU LJUBAVI (LP) | kom | | 2,00 | 25 | 18,00 | 36,00 | 30,00 |
+| 15 | 3850126190157 | RAZNI - OSAMDESETE, 25 GREATEST HITS (LP) | kom | | 5,00 | 25 | 18,00 | 90,00 | 30,00 |
+| 16 | 3850126120765 | RAZNI - POP FESTIVAL LJUBLJANA 1972 - BOOM (LP) | kom | | 5,00 | 25 | 15,00 | 75,00 | 25,00 |
+| 17 | 5319991505285 | TOSE PROESKI - IGRI BEZ GRANICI (LP) | kom | | 10,00 | 25 | 32,00 | 320,00 | 49,00 |
+| 18 | 3850126198139 | VLATKO STEFANOVSKI - MUSCLE MEMORY (LP) | kom | | 2,00 | 25 | 18,00 | 36,00 | 30,00 |
+| 19 | 3850126162321 | ZDRAVKO COLIC - 25 GREATEST HITS (LP) | kom | | 10,00 | 25 | 18,00 | 180,00 | 30,00 |
+| 20 | 3850126108619 | ZORAN PREDIN - TAKSNIH VEC NE DELAJO (LP) | kom | | 1,00 | 25 | 15,00 | 15,00 | 25,00 |
+| 21 | 3850126201518 | ZELJKO BEBEK - MADE IN LONDON (LP) | kom | | 15,00 | 25 | 21,00 | 315,00 | 35,00 |
+
+Ukupno pri e poreza: 127,00
+
+2.568,00
+
+Primio: ____________________
+
+Izdao: ____________________
+
+Zagrebacka banka d.d. Zagreb IBAN: HR8223600001101213510 *
+Privredna banka d.d. Zagreb IBAN: HR7623400091110046200 *
+Drustvo je upisano u Sudski registar kod Trgovackog suda u Zagrebu pod MBS: 080034452 * temelni kapital: 22.813.200 HRK * izdanih dionica: 114.066
+Direktor: Zelimir Babogredac * Predsjednik NO: Mario Kovac
