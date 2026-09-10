@@ -63,10 +63,36 @@ ok('no rewritten line carries two barcodes',
 ok('the "| 27 | 369,73 |" total is NOT folded onto the release above it',
   !/369,73/.test(lineFor('5060572510005')) && /369,73/.test(shown), lineFor('5060572510005'));
 
-// nothing is dropped: every cell of the original still appears somewhere
-const cells = UNALIGNED.split('\n').join('|').split('|').map(s => s.trim()).filter(s => s && !/^-{2,}$/.test(s));
-const lost = cells.filter(c => shown.indexOf(c) === -1);
-ok('no cell of the original is lost in the rewrite', lost.length === 0, lost.join(' / '));
+// nothing is dropped: every FIELD of the original still appears somewhere. Split on the pipe
+// AND on runs of whitespace, because v59 also re-cells the loose line above the table.
+const fields = [];
+for (const line of UNALIGNED.split('\n')) {
+  for (const cell of line.split('|')) {
+    for (const f of cell.trim().split(/\s{2,}/)) {
+      const t = f.trim();
+      if (t && !/^-{2,}$/.test(t)) fields.push(t);
+    }
+  }
+}
+const lost = fields.filter(c => shown.indexOf(c) === -1);
+ok('no field of the original is lost in the rewrite', lost.length === 0, lost.join(' / '));
+
+// ---- v59: the release the parser turned into a PAGE HEADER is put back INTO the table.
+// LlamaParse left "5056083208579  Yes  Hanns-Martin-Schleyer-Halle..." as loose text above the
+// table and put the rest of that same record — CD, 31St May, 1991, 9,99 — in the table's header
+// row. One record, in two pieces, in two kinds of block: it is the one release the model still
+// did not return after v58 rewrote the rest of the page (client, 2026-09-10).
+const yes = lineFor('5056083208579');
+ok('the stranded release is reclaimed as a TABLE row', yes.trim().charAt(0) === '|', yes);
+ok('...carrying its artist', /\|\s*Yes\s*\|/.test(yes), yes);
+ok('...and the cells the parser left in the fake header',
+  /31St May/.test(yes) && /1991/.test(yes) && /9,99/.test(yes), yes);
+ok('...and it is not left loose above the table as well',
+  shown.split('\n').filter(l => l.indexOf('5056083208579') !== -1).length === 1,
+  shown.split('\n').filter(l => l.indexOf('5056083208579') !== -1).join(' || '));
+// a table we REPAIRED is our own reading of the page, so its count is a floor, never an order
+ok('a rewritten table is never announced EXACTLY',
+  !/exactly/i.test(chunk(UNALIGNED).map(p => p.chunk_note).join(' ')));
 
 // and every barcode is named in the note, so the model has a checklist
 const notes = chunk(UNALIGNED).map(p => p.chunk_note).join(' ');

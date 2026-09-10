@@ -103,6 +103,34 @@ const outC = run(node('Build Catalog Rows'), { $: $2, $input: { all: () => ai.ma
 ok('POSSIBLE MISSING RELEASE fires when the shortfall exceeds the named barcodes',
   outC.some(r => /POSSIBLE MISSING RELEASE/.test(noteOf(r))), outC.map(noteOf).join(' || ').slice(0, 300));
 
+// ------------------------------------- D. a barcode that correctly produces NO ROW AT ALL
+// The line is already in the catalog and sent, and this document changes nothing about it, so
+// there is nothing to write. Correct — and, until v59, completely silent: the run emitted one
+// row fewer than the document printed barcodes, with nothing on screen to say why. That gap is
+// what the client reads as data loss, and they are right to ("47 once again", 2026-09-10).
+console.log('  -- a barcode whose line already exists unchanged: no row, but it is ACCOUNTED FOR');
+// every WATCHED field matches what the AI returned, so the follow-up changes nothing at all
+const sentPool = [{ id: 'S1', ean: '0198029909012', artist: 'ARTIST A', title: 'TITLE A', format: 'CD',
+  unit: 1, catalogue_no: null, release_date: null, label: 'I-DI MUSIC', cop: null, ppd: '9,99',
+  rock_bottom: 9.99, price_original: null, currency: null, calculation_group: '1',
+  status: 'approved', sent_at: '2026-09-01T00:00:00Z', catalog: 'other', extra: {} }];
+const outD = build(sentPool);
+const rowsD = outD.filter(r => !(r.extra && r.extra.stub));
+const notesD = outD.map(noteOf).join('\n');
+ok('the unchanged already-sent barcode gets no row of its own',
+  !rowsD.some(r => r.match_line_id === 'S1') && !rowsD.some(r => String(r.ean || '') === '0198029909012'),
+  JSON.stringify(rowsD.map(r => r.match_line_id || r.ean)));
+ok('...but it is NAMED, so the shortfall is explained', /0198029909012/.test(notesD), notesD.slice(0, 400));
+ok('...under a receipt, not a warning', /EXTRACTION NOTE: this document prints 4 barcodes/.test(notesD), notesD.slice(0, 400));
+ok('...that says nothing is missing', /Nothing is missing/.test(notesD));
+
+// ------------------------------------- E. the receipt does not repeat what is already said
+// When the ONLY reason a barcode has no row is a stub, the sentence above already says so.
+// Printing a second paragraph to say it again is the fault this note exists to cure.
+console.log('  -- stubs alone: no receipt, because the sentence above already explains them');
+ok('a run whose only gap is stubs gets no second paragraph',
+  ordinaryA.every(r => !/EXTRACTION NOTE: this document prints/.test(noteOf(r))), noteOf(ordinaryA[0]));
+
 console.log('  ' + '-'.repeat(60));
 console.log('  %d passed, %d failed', pass, fail);
 if (fail) process.exit(1);
