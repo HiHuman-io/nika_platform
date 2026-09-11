@@ -46,6 +46,7 @@ const DOCS = [
   // for in an earlier message is not one this document dropped.
   { name: 'Menart invoice (a forward quoting our OWN order back)', att: read('menart-invoice.txt'),
     body: read('menart-invoice.body.txt'), own: read('menart-invoice.own.txt'),
+    from: 'marko.stopar@nika.si', subject: 'Fwd: NIKA narudzba i pitanje',
     label: 'MATRIX MUSIC', supplier: '54' },
 ];
 
@@ -73,8 +74,14 @@ const ok = (doc, beh, name, cond, detail) => {
 };
 
 function chunkOf(doc) {
-  const src = { message_id: 'M', thread_id: 'T', subject: 'doc.pdf', from: null,
-    date: '2026-09-10T12:00:00Z', body: doc.body, attachments_text: doc.att, source_kind: 'manual' };
+  // v64: `from` is part of the document. Demoting an earlier message quoted inside a forward
+  // is only allowed when that message is OUR OWN side of the conversation, which is decided by
+  // comparing its attribution against this address — so a fixture that models a forwarded mail
+  // has to carry the address it really arrived from.
+  const src = { message_id: 'M', thread_id: 'T', subject: doc.subject || 'doc.pdf',
+    from: doc.from === undefined ? null : doc.from,
+    date: '2026-09-10T12:00:00Z', body: doc.body, attachments_text: doc.att,
+    source_kind: doc.from ? 'email' : 'manual', quote_strip: doc.from ? 'forward' : 'none' };
   return run(node('Chunk Source'), { $input: { all: () => [{ json: src }] } });
 }
 

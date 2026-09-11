@@ -160,6 +160,69 @@ const noteOf = r => String((r.notes || '') + ' ' + (((r.extra || {}).review_note
   ok('three invoice lines, not six', c.chunk_rows === 3, c.chunk_rows);
 }
 
+// ------------------------------------------------- 7. THE LOSS THE FIRST CUT OF v64 CAUSED
+// A colleague forwards a SUPPLIER's reply whose release list sits in the OLDER quoted mail
+// ("the October list below is still valid"), with a small pro-forma attached for something
+// else. The first cut of the demotion had only two conditions - it is a forward, and an
+// attachment prints a barcode - and both hold here. It hid all three of the supplier's
+// barcodes from the census AND told the model not to extract them. Reproduced end to end, then
+// fixed with two more conditions, either of which stops it on its own: the quoted block must be
+// OUR OWN side of the conversation, and the attachment must already supply most of what it
+// names. This test is the reason both exist.
+{
+  const body = [
+    'Mare, tole je še vedno aktualno — prosim naroči.', '',
+    '\---------- Forwarded message ---------',
+    'Od: **Sales PIAS** <[sales@pias.com](mailto:sales@pias.com)\>',
+    'Date: pet., 11. sep. 2026, 16:00',
+    'Subject: RE: October list',
+    'To: Marko Stopar <[marko.stopar@nika.si](mailto:marko.stopar@nika.si)\>', '',
+    'Hi Marko — the October list below is still valid, order from it.', '',
+    '**From:** Sales PIAS <[sales@pias.com](mailto:sales@pias.com)\>',
+    '**Sent:** Tuesday, September 1, 2026 10:15 AM',
+    '**To:** Marko Stopar <[marko.stopar@nika.si](mailto:marko.stopar@nika.si)\>',
+    '**Subject:** October list', '',
+    'Our October releases:', '',
+    '| Barcode | Artist | Title | Format |',
+    '| ------- | ------ | ----- | ------ |',
+    '| 5054197111111 | ARTIST ONE | TITLE ONE | LP |',
+    '| 5054197222222 | ARTIST TWO | TITLE TWO | CD |',
+    '| 5054197333333 | ARTIST THREE | TITLE THREE | LP |',
+  ].join('\n');
+  const att = ['## Attachment: proforma.pdf', '', '| Barcode | Item | Qty |', '| --- | --- | --- |',
+    '| 0602445999999 | SOMETHING ELSE | 1 |'].join('\n');
+  const c = chunk({ from: 'mare@nika.si', body: body, attachments_text: att })[0];
+  const named = String((String(c.chunk_note).match(/identifiers printed in this part are: ([^.]*)\./) || [, ''])[1]);
+  ok('a SUPPLIER\'s list quoted in an older mail is never demoted',
+    String(c.body_own).indexOf('5054197111111') !== -1, 'body_own is ' + String(c.body_own).length + ' chars');
+  ok('...all three of its barcodes are still ordered back',
+    ['5054197111111', '5054197222222', '5054197333333'].every(b => named.indexOf(b) !== -1), named);
+  ok('...and the model is NOT told to skip them', !/do not return a release from them/.test(String(c.body)));
+  ok('...and they still count toward the floor', c.chunk_rows === 4, c.chunk_rows);
+}
+{
+  // and the other guard on its own: our own quoted mail, but naming releases the attachment
+  // knows nothing about — new information, not a duplicate of the document. Never demoted.
+  const body = [
+    'Prosim naroči.', '',
+    '\---------- Forwarded message ---------',
+    'Od: **Marko Stopar** <[marko.stopar@nika.si](mailto:marko.stopar@nika.si)\>',
+    'Date: pet., 11. sep. 2026, 16:00', 'Subject: RE: list', 'To: Mare <[mare@nika.si](mailto:mare@nika.si)\>', '',
+    'Glej spodaj.', '',
+    '**From:** Marko Stopar <[marko.stopar@nika.si](mailto:marko.stopar@nika.si)\>',
+    '**Sent:** Tuesday, September 1, 2026 10:15 AM',
+    '**To:** Mare <[mare@nika.si](mailto:mare@nika.si)\>', '**Subject:** list', '',
+    '| Barcode | Artist | Title | Format |', '| --- | --- | --- | --- |',
+    '| 5054197111111 | ARTIST ONE | TITLE ONE | LP |',
+    '| 5054197222222 | ARTIST TWO | TITLE TWO | CD |',
+  ].join('\n');
+  const att = ['## Attachment: proforma.pdf', '', '| Barcode | Item | Qty |', '| --- | --- | --- |',
+    '| 0602445999999 | SOMETHING ELSE | 1 |'].join('\n');
+  const c = chunk({ from: 'mare@nika.si', body: body, attachments_text: att })[0];
+  ok('our own quoted mail naming releases the attachment does not supply is left alone',
+    String(c.body_own).indexOf('5054197111111') !== -1);
+}
+
 console.log('  ' + '-'.repeat(60));
 console.log('  %d passed, %d failed', pass, fail);
 if (fail) process.exit(1);
