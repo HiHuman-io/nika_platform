@@ -16,7 +16,7 @@ const versions = fs.readdirSync(path.join(ROOT, 'n8n'))
 const V = want ? Number(want) : Math.max.apply(null, versions);
 if (!versions.includes(V)) { console.error('no such version: v' + V); process.exit(2); }
 
-const SUITES = ['corpus', 'count-shapes', 'item-pairing', 'recovery', 'stub-recovery', 'review-notes', 'unaligned-tables', 'gate-note'];
+const SUITES = ['corpus', 'v63-rules', 'count-shapes', 'item-pairing', 'recovery', 'stub-recovery', 'review-notes', 'unaligned-tables', 'gate-note'];
 const WFS = ['manual-import', 'extraction-stage1'];
 
 console.log('\n  workflow tests — v' + V + '\n');
