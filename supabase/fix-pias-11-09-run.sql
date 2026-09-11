@@ -5,15 +5,16 @@
 -- nothing is corrected retroactively anywhere else — the v63 code fixes are forward-looking, this
 -- file is the one-off repair of what the run already stored (client, 2026-09-11).
 --
--- TYPES: `unit` is a TEXT column here and `release_date` may be date, timestamptz or text, so every
--- comparison below casts explicitly (`unit::text = '2'`, `left(release_date::text, 10)`). Comparing
--- either of them to a bare number or a `date` literal fails with 'operator does not exist'
--- (client hit exactly that, 2026-09-11). Assignments are fine with a plain quoted literal.
+-- TYPES. This table is not all text: `unit` is text, `status` is the ENUM catalog_status, and
+-- `release_date` may be date, timestamptz or text. Two runs died on that — `unit is distinct from 2`
+-- (text = integer) and `coalesce(status, '')` (no such enum value). So EVERY comparison below casts
+-- to ::text, which is right whatever the column turns out to be. Assignments stay plain quoted
+-- literals; Postgres casts those on assignment for text, enum and date alike. Keep it that way.
 --
--- Every block is: LOOK first, then CHANGE. All of it is safe to run top to bottom in one go — each
--- update is a no-op once applied, and the one DELETE refuses to run unless it finds exactly the
--- three rows predicted. In the Supabase editor only the LAST result is shown, so to read a
--- particular select, highlight it and run the selection.
+-- Safe to run top to bottom, and safe to re-run: every update is a no-op once applied, and the
+-- delete can only match a barcode-less row that has a barcoded twin in this same import. The
+-- Supabase editor runs the whole script in ONE transaction — an error anywhere rolls it all back —
+-- and shows only the LAST result, so to read a particular select, highlight it and run it.
 --
 -- The defects being repaired, and the v63 rule that stops each one recurring:
 --   1  both JAY-Z double LPs stored as single LPs        -> formatDemotes()
@@ -45,25 +46,25 @@ where extra->>'source_message_id' = '1a08d4528078a20a';
 -- LPs", and a plural carrier with no number beat the column.
 select ean, artist, title, format, unit from public.catalog_lines
 where extra->>'source_message_id' = '1a08d4528078a20a'
-  and ean in ('0810061164906', '0840571800674');
+  and ean::text in ('0810061164906', '0840571800674');
 
 update public.catalog_lines
 set format = 'LP2', unit = '2'
 where extra->>'source_message_id' = '1a08d4528078a20a'
-  and ean in ('0810061164906', '0840571800674')
-  and (format is distinct from 'LP2' or unit::text is distinct from '2');
+  and ean::text in ('0810061164906', '0840571800674')
+  and (format::text is distinct from 'LP2' or unit::text is distinct from '2');
 
 
 -- ═══════════════════════════════════════════ 2. DAVE THE DIVER'S RELEASE DATE IS 11 SEPT 2026
 -- 2023-01-01 came from "Released in 2023" in the one-sheet prose. The spreadsheet line says
 -- 9/11/26, and so does the subject of the mail.
 select ean, artist, title, release_date from public.catalog_lines
-where extra->>'source_message_id' = '1a08d4528078a20a' and ean = '5063176104212';
+where extra->>'source_message_id' = '1a08d4528078a20a' and ean::text = '5063176104212';
 
 update public.catalog_lines
 set release_date = '2026-09-11'
 where extra->>'source_message_id' = '1a08d4528078a20a'
-  and ean = '5063176104212'
+  and ean::text = '5063176104212'
   and left(release_date::text, 10) is distinct from '2026-09-11';
 
 
@@ -81,8 +82,8 @@ set status = 'in_progress',
     title  = btrim(replace(title, ' (US EXCLUSIVE)', '')),
     extra  = coalesce(extra, '{}'::jsonb) || '{"exclusion_reason": null}'::jsonb
 where extra->>'source_message_id' = '1a08d4528078a20a'
-  and ean in ('8800371256806',   -- JET Poster Ver. - HAECHAN
-              '8800371256790');  -- JET Poster Ver. - JAEHYUN
+  and ean::text in ('8800371256806',   -- JET Poster Ver. - HAECHAN
+                    '8800371256790');  -- JET Poster Ver. - JAEHYUN
 
 -- SMCD503 is YOUR call and is left alone. Its own PDF heading does say "NCT 127 US Exclusive GROUP
 -- Version", so excluding it is defensible — but the spreadsheet gives it the same World-ex-Asia
@@ -91,7 +92,7 @@ where extra->>'source_message_id' = '1a08d4528078a20a'
 -- set status = 'in_progress',
 --     title  = btrim(replace(title, ' (US EXCLUSIVE)', '')),
 --     extra  = coalesce(extra, '{}'::jsonb) || '{"exclusion_reason": null}'::jsonb
--- where extra->>'source_message_id' = '1a08d4528078a20a' and ean = '8800371256707';
+-- where extra->>'source_message_id' = '1a08d4528078a20a' and ean::text = '8800371256707';
 
 
 -- ══════════════════════════════════════ 4. THREE ROWS ARE THE SAME RELEASE READ OFF THE ARTWORK
@@ -99,77 +100,38 @@ where extra->>'source_message_id' = '1a08d4528078a20a'
 -- with no barcode, each already in this same import as a row that HAS one. Read off the album-cover
 -- JPGs and a barcode-less one-sheet.
 select c.id, c.artist, c.title, c.format, c.ean,
-       (select string_agg(d.ean, ', ') from public.catalog_lines d
+       (select string_agg(d.ean::text, ', ') from public.catalog_lines d
         where d.extra->>'source_message_id' = c.extra->>'source_message_id'
           and d.ean is not null and d.artist = c.artist and d.title = c.title
-          and d.format is not distinct from c.format) as the_barcoded_row_it_repeats
+          and d.format::text is not distinct from c.format::text) as the_barcoded_row_it_repeats
 from public.catalog_lines c
 where c.extra->>'source_message_id' = '1a08d4528078a20a'
   and c.ean is null
   and exists (select 1 from public.catalog_lines d
               where d.extra->>'source_message_id' = c.extra->>'source_message_id'
                 and d.ean is not null and d.artist = c.artist and d.title = c.title
-                and d.format is not distinct from c.format);
--- expected: exactly 3 rows. If it returns anything else, STOP and read it before deleting.
+                and d.format::text is not distinct from c.format::text);
+-- expected: exactly 3 rows.
+--
+-- The delete can only ever match a row of THIS message that has no barcode, is not approved, and
+-- whose artist + title + format are already carried by a row of the same message that DOES have
+-- one. There is no case where that is a release worth keeping: the barcoded row is the same
+-- release, better identified.
 
--- The delete REFUSES to run unless it finds exactly the three rows predicted above (or none,
--- because it has already been run). If the database disagrees with the analysis, nothing is
--- deleted and it says so — safe to run as part of the whole file without reading the select first.
-do $$
-declare n integer;
-begin
-  select count(*) into n
-  from public.catalog_lines c
-  where c.extra->>'source_message_id' = '1a08d4528078a20a'
-    and c.ean is null
-    and coalesce(c.status, '') <> 'approved'
-    and exists (select 1 from public.catalog_lines d
-                where d.extra->>'source_message_id' = c.extra->>'source_message_id'
-                  and d.ean is not null and d.artist = c.artist and d.title = c.title
-                  and d.format is not distinct from c.format);
-
-  if n = 0 then
-    raise notice 'block 4: nothing to delete — already done.';
-    return;
-  end if;
-  if n <> 3 then
-    raise exception 'block 4: expected exactly 3 barcode-less repeats, found %. NOTHING deleted — run the select above and look at them first.', n;
-  end if;
-
-  delete from public.catalog_lines c
-  where c.extra->>'source_message_id' = '1a08d4528078a20a'
-    and c.ean is null
-    and coalesce(c.status, '') <> 'approved'   -- never delete something a human has already approved
-    and exists (select 1 from public.catalog_lines d
-                where d.extra->>'source_message_id' = c.extra->>'source_message_id'
-                  and d.ean is not null and d.artist = c.artist and d.title = c.title
-                  and d.format is not distinct from c.format);
-  raise notice 'block 4: deleted % barcode-less repeat(s).', n;
-end $$;
+delete from public.catalog_lines c
+where c.extra->>'source_message_id' = '1a08d4528078a20a'
+  and c.ean is null
+  and c.status::text is distinct from 'approved'   -- never delete what a human has approved
+  and exists (select 1 from public.catalog_lines d
+              where d.extra->>'source_message_id' = c.extra->>'source_message_id'
+                and d.ean is not null and d.artist = c.artist and d.title = c.title
+                and d.format::text is not distinct from c.format::text);
 
 
 -- ═══════════════════════════════════════════════ 5. NOTES THAT SAY THE SAME THING TWICE OVER
 -- The update path space-joined this run's notes while the stored copy was newline-joined, so the
 -- duplicate check missed and appended the lot again. Collapses a note that is exactly A + "\n" + A
 -- once whitespace is normalised — and nothing else.
-with split as (
-  select c.id, c.notes, p.pos,
-         left(c.notes, p.pos - 1)   as head,
-         substr(c.notes, p.pos + 1) as tail
-  from public.catalog_lines c
-       cross join lateral generate_series(1, length(c.notes)) as p(pos)
-  where c.extra->>'source_message_id' = '1a08d4528078a20a'
-    and c.notes is not null
-    and substr(c.notes, p.pos, 1) = chr(10)
-),
-dupes as (
-  select distinct on (id) id, head, tail, notes
-  from split
-  where regexp_replace(btrim(head), '\s+', ' ', 'g') = regexp_replace(btrim(tail), '\s+', ' ', 'g')
-  order by id, length(head) desc
-)
-select id, head as keeps, tail as drops from dupes;    -- look first
-
 with split as (
   select c.id, c.notes, p.pos,
          left(c.notes, p.pos - 1)   as head,
@@ -196,13 +158,10 @@ where c.id = d.id and c.notes is distinct from d.head;
 -- The AI read the stage name as a person (family "Banton", given "Buju"), so the SURNAME-FIRSTNAME
 -- rule reordered it — while the same artist's other rows in this import, which came through the
 -- recovery pass, correctly say BUJU BANTON.
-select ean, artist, title from public.catalog_lines
-where extra->>'source_message_id' = '1a08d4528078a20a' and artist like 'BANTON%';
-
 update public.catalog_lines
 set artist = 'BUJU BANTON'
 where extra->>'source_message_id' = '1a08d4528078a20a'
-  and ean = '0054645750172'
+  and ean::text = '0054645750172'
   and artist = 'BANTON BUJU';
 
 
@@ -231,7 +190,7 @@ from public.catalog_lines c
        ('5051083237925','Aparté'),               ('3149020958179','harmonia mundi'),
        ('3760213657657','Paraty'),
        ('0054645750172','(NOT in the spreadsheet — read off the Buju Banton one-sheet and the barcode in a file name)')
-     ) as v(ean, printed_in_the_spreadsheet) on v.ean = c.ean
+     ) as v(ean, printed_in_the_spreadsheet) on v.ean = c.ean::text
 where c.extra->>'source_message_id' = '1a08d4528078a20a'
 order by c.label, c.artist;
 
@@ -239,7 +198,7 @@ order by c.label, c.artist;
 -- ══════════════════════════════════════════════════════════════════════ 8. AFTERWARDS, CHECK
 select count(*) filter (where ean is not null)  as with_barcode,      -- same as block 0 (33 if none were refused)
        count(*) filter (where ean is null)      as without_barcode,   -- want 0
-       count(*) filter (where status = 'excluded') as excluded,       -- want 1 (SMCD503) or 0
+       count(*) filter (where status::text = 'excluded') as excluded, -- want 1 (SMCD503) or 0
        count(*) filter (where unit::text = '2') as double_carriers    -- want 9, of which 2 are the JAY-Z LPs
 from public.catalog_lines
 where extra->>'source_message_id' = '1a08d4528078a20a';
