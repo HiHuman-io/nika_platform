@@ -39,6 +39,14 @@ const DOCS = [
     label: 'CROATIA RECORDS', supplier: '6' },
   { name: 'Croatia 648+649 (TWO attachments, IBAN footers)', att: read('croatia-648-649.email.txt'),
     body: read('croatia-648-649.body.txt'), label: 'CROATIA RECORDS', supplier: '6' },
+  // v64: a forward whose body quotes Nika's OWN order back. The invoice supplies three of the
+  // four titles that order asked for, so the fourth barcode is printed in the raw text and is
+  // NOT a release of this document. `own` is the part of the body that is this document's own
+  // content; everything below is policed against att + own, because a barcode somebody asked
+  // for in an earlier message is not one this document dropped.
+  { name: 'Menart invoice (a forward quoting our OWN order back)', att: read('menart-invoice.txt'),
+    body: read('menart-invoice.body.txt'), own: read('menart-invoice.own.txt'),
+    label: 'MATRIX MUSIC', supplier: '54' },
 ];
 
 // ---------------------------------------------------------------- the ways an AI can fail
@@ -118,7 +126,17 @@ console.log('  ' + 'document'.padEnd(52) + 'behaviour'.padEnd(40) + 'printed  ro
 for (const doc of DOCS) {
   const chunks = chunkOf(doc);
   const printed = {};
-  for (const raw of (doc.att + '\n' + doc.body).match(BARCODE_G) || []) { const k = key(raw); if (k) printed[k] = raw; }
+  // v64: THE PRINTED SET HAS TWO JOBS AND THEY ARE NOT THE SAME SET.
+  //   printed    — the barcodes this document itself carries. A missing one is a LOST release.
+  //   printedRaw — every barcode anywhere in the raw text, quoted history included. A row
+  //                carrying a barcode outside THIS set is an INVENTION.
+  // Where a mail quotes an earlier message the two differ, and each invariant needs its own:
+  // an order somebody sent is not a release this document dropped, but a row read out of that
+  // order is not invented either — it is real, and simply not supplied. It must be flagged.
+  const ownBody = doc.own === undefined ? doc.body : doc.own;
+  const printedRaw = {};
+  for (const raw of (doc.att + '\n' + doc.body).match(BARCODE_G) || []) { const k = key(raw); if (k) printedRaw[k] = raw; }
+  for (const raw of (doc.att + '\n' + ownBody).match(BARCODE_G) || []) { const k = key(raw); if (k) printed[k] = raw; }
   const N = Object.keys(printed).length;
 
   // ---- an invariant about the CHUNKER itself, independent of the AI
@@ -145,9 +163,20 @@ for (const doc of DOCS) {
     const out = build(doc, chunks, ai, true);
     console.log('  ' + doc.name.slice(0, 50).padEnd(52) + beh.name.padEnd(40) + String(N).padStart(5) + String(out.length).padStart(7));
 
-    // 1. NOTHING INVENTED — every barcode on a row is printed in the document
-    const strays = out.filter(r => r.ean && !printed[key(r.ean)]).map(r => r.ean);
+    // 1. NOTHING INVENTED — every barcode on a row appears SOMEWHERE in the raw document
+    const strays = out.filter(r => r.ean && !printedRaw[key(r.ean)]).map(r => r.ean);
     ok(doc.name, beh.name, 'a row carries a barcode the document never printed', strays.length === 0, JSON.stringify(strays));
+
+    // 1b. v64 — A ROW READ OUT OF QUOTED HISTORY MUST SAY SO. It is not invented and it is not
+    // lost: it is a release an earlier message asked about, which this document does not supply.
+    // Nothing deterministic may manufacture it, and if the model returns it anyway the reviewer
+    // has to be told what they are looking at before they approve stock that was never sent.
+    const quotedOnly = out.filter(r => r.ean && !printed[key(r.ean)] && printedRaw[key(r.ean)]);
+    for (const r of quotedOnly) {
+      ok(doc.name, beh.name, 'a row from quoted history is not flagged: ' + r.ean,
+        ((r.extra || {}).needs_review) === true && /QUOTED|EARLIER MESSAGE/i.test(String(((r.extra || {}).review_note) || '')),
+        JSON.stringify(((r.extra || {}).review_note) || '(no note)').slice(0, 200));
+    }
 
     // 2. NOTHING DUPLICATED — no barcode gets two new lines
     const seen = {}, dupes = [];
