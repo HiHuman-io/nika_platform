@@ -5,8 +5,15 @@
 -- nothing is corrected retroactively anywhere else — the v63 code fixes are forward-looking, this
 -- file is the one-off repair of what the run already stored (client, 2026-09-11).
 --
--- Every block is: LOOK first, then CHANGE. Run the selects, read them, then run the update. All of
--- it is safe to re-run — each update is a no-op once it has been applied.
+-- TYPES: `unit` is a TEXT column here and `release_date` may be date, timestamptz or text, so every
+-- comparison below casts explicitly (`unit::text = '2'`, `left(release_date::text, 10)`). Comparing
+-- either of them to a bare number or a `date` literal fails with 'operator does not exist'
+-- (client hit exactly that, 2026-09-11). Assignments are fine with a plain quoted literal.
+--
+-- Every block is: LOOK first, then CHANGE. All of it is safe to run top to bottom in one go — each
+-- update is a no-op once applied, and the one DELETE refuses to run unless it finds exactly the
+-- three rows predicted. In the Supabase editor only the LAST result is shown, so to read a
+-- particular select, highlight it and run the selection.
 --
 -- The defects being repaired, and the v63 rule that stops each one recurring:
 --   1  both JAY-Z double LPs stored as single LPs        -> formatDemotes()
@@ -27,7 +34,10 @@ select count(*) filter (where ean is not null) as with_barcode,
        count(*)                                as rows_total
 from public.catalog_lines
 where extra->>'source_message_id' = '1a08d4528078a20a';
--- expected before any fix: 33 / 3 / 36
+-- Expected before any fix: 33 / 3 / 36.
+-- ⚠ If with_barcode is LESS than 33, the difference is exactly the new lines the database
+--   refused as duplicates of an already-sent barcode — run supabase/find-skipped-duplicates.sql
+--   to name them, and read the counts in block 8 against this number rather than against 33.
 
 
 -- ════════════════════════════════════════════════ 1. THE TWO JAY-Z DOUBLE LPs ARE NOT SINGLES
@@ -38,10 +48,10 @@ where extra->>'source_message_id' = '1a08d4528078a20a'
   and ean in ('0810061164906', '0840571800674');
 
 update public.catalog_lines
-set format = 'LP2', unit = 2
+set format = 'LP2', unit = '2'
 where extra->>'source_message_id' = '1a08d4528078a20a'
   and ean in ('0810061164906', '0840571800674')
-  and (format is distinct from 'LP2' or unit is distinct from 2);
+  and (format is distinct from 'LP2' or unit::text is distinct from '2');
 
 
 -- ═══════════════════════════════════════════ 2. DAVE THE DIVER'S RELEASE DATE IS 11 SEPT 2026
@@ -51,10 +61,10 @@ select ean, artist, title, release_date from public.catalog_lines
 where extra->>'source_message_id' = '1a08d4528078a20a' and ean = '5063176104212';
 
 update public.catalog_lines
-set release_date = date '2026-09-11'
+set release_date = '2026-09-11'
 where extra->>'source_message_id' = '1a08d4528078a20a'
   and ean = '5063176104212'
-  and release_date is distinct from date '2026-09-11';
+  and left(release_date::text, 10) is distinct from '2026-09-11';
 
 
 -- ═════════════════════════════════ 3. TWO NCT 127 CDs ARE SELLABLE HERE AND WERE NOT EXCLUDED
@@ -102,14 +112,40 @@ where c.extra->>'source_message_id' = '1a08d4528078a20a'
                 and d.format is not distinct from c.format);
 -- expected: exactly 3 rows. If it returns anything else, STOP and read it before deleting.
 
-delete from public.catalog_lines c
-where c.extra->>'source_message_id' = '1a08d4528078a20a'
-  and c.ean is null
-  and c.status <> 'approved'                 -- never delete something a human has already approved
-  and exists (select 1 from public.catalog_lines d
-              where d.extra->>'source_message_id' = c.extra->>'source_message_id'
-                and d.ean is not null and d.artist = c.artist and d.title = c.title
-                and d.format is not distinct from c.format);
+-- The delete REFUSES to run unless it finds exactly the three rows predicted above (or none,
+-- because it has already been run). If the database disagrees with the analysis, nothing is
+-- deleted and it says so — safe to run as part of the whole file without reading the select first.
+do $$
+declare n integer;
+begin
+  select count(*) into n
+  from public.catalog_lines c
+  where c.extra->>'source_message_id' = '1a08d4528078a20a'
+    and c.ean is null
+    and coalesce(c.status, '') <> 'approved'
+    and exists (select 1 from public.catalog_lines d
+                where d.extra->>'source_message_id' = c.extra->>'source_message_id'
+                  and d.ean is not null and d.artist = c.artist and d.title = c.title
+                  and d.format is not distinct from c.format);
+
+  if n = 0 then
+    raise notice 'block 4: nothing to delete — already done.';
+    return;
+  end if;
+  if n <> 3 then
+    raise exception 'block 4: expected exactly 3 barcode-less repeats, found %. NOTHING deleted — run the select above and look at them first.', n;
+  end if;
+
+  delete from public.catalog_lines c
+  where c.extra->>'source_message_id' = '1a08d4528078a20a'
+    and c.ean is null
+    and coalesce(c.status, '') <> 'approved'   -- never delete something a human has already approved
+    and exists (select 1 from public.catalog_lines d
+                where d.extra->>'source_message_id' = c.extra->>'source_message_id'
+                  and d.ean is not null and d.artist = c.artist and d.title = c.title
+                  and d.format is not distinct from c.format);
+  raise notice 'block 4: deleted % barcode-less repeat(s).', n;
+end $$;
 
 
 -- ═══════════════════════════════════════════════ 5. NOTES THAT SAY THE SAME THING TWICE OVER
@@ -193,16 +229,17 @@ from public.catalog_lines c
        ('0810061165859','Diggers Factory'),      ('0840571800674','Diggers Factory'),
        ('4260307012519','Spirit Of The Streets Records/Believe'),
        ('5051083237925','Aparté'),               ('3149020958179','harmonia mundi'),
-       ('3760213657657','Paraty')
+       ('3760213657657','Paraty'),
+       ('0054645750172','(NOT in the spreadsheet — read off the Buju Banton one-sheet and the barcode in a file name)')
      ) as v(ean, printed_in_the_spreadsheet) on v.ean = c.ean
 where c.extra->>'source_message_id' = '1a08d4528078a20a'
 order by c.label, c.artist;
 
 
 -- ══════════════════════════════════════════════════════════════════════ 8. AFTERWARDS, CHECK
-select count(*) filter (where ean is not null)  as with_barcode,      -- want 33
+select count(*) filter (where ean is not null)  as with_barcode,      -- same as block 0 (33 if none were refused)
        count(*) filter (where ean is null)      as without_barcode,   -- want 0
        count(*) filter (where status = 'excluded') as excluded,       -- want 1 (SMCD503) or 0
-       count(*) filter (where unit = 2)         as double_carriers    -- want 9
+       count(*) filter (where unit::text = '2') as double_carriers    -- want 9, of which 2 are the JAY-Z LPs
 from public.catalog_lines
 where extra->>'source_message_id' = '1a08d4528078a20a';

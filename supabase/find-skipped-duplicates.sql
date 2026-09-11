@@ -34,7 +34,8 @@ with arrived as (
   from public.raw_entries r
        cross join lateral jsonb_array_elements(
          coalesce(r.extracted -> 'result' -> 'items', '[]'::jsonb)) i
-  where r.received_at > now() - interval '30 days'   -- <<< widen, or swap for source_email_id =
+  where r.received_at::timestamptz > now() - interval '30 days'   -- <<< widen, or swap for source_email_id =
+    -- (the cast is deliberate: received_at is written from the mail's own ISO date string)
     and coalesce(i->>'ean', '') <> ''
 ),
 coded as (
